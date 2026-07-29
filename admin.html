@@ -128,6 +128,20 @@
             color: var(--text-main);
         }
 
+        .scan-indicator {
+            background-color: #e8eaf6;
+            border: 1px dashed var(--primary-light);
+            padding: 10px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            color: var(--primary-blue);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            font-weight: 600;
+        }
+
         .form-group {
             display: flex;
             flex-direction: column;
@@ -232,7 +246,6 @@
             display: none;
             align-items: center;
             gap: 10px;
-            text-align: left;
         }
 
         .spinner {
@@ -265,7 +278,7 @@
     </header>
 
     <main class="main-container">
-        <!-- 1. LOGIN SECTION -->
+        <!-- 1. LOGIN -->
         <div id="login-view" class="view-section active">
             <div class="card">
                 <h2>Admin Login</h2>
@@ -284,11 +297,11 @@
             </div>
         </div>
 
-        <!-- 2. CARD TYPE SELECTION -->
+        <!-- 2. OPERATION SELECTION -->
         <div id="selection-view" class="view-section">
             <div class="card">
                 <h2>Select Operation</h2>
-                <p style="text-align: center; color: var(--text-muted); font-size: 0.9rem;">Choose whether to edit an existing RFID card or add a new card.</p>
+                <p style="text-align: center; color: var(--text-muted); font-size: 0.9rem;">Choose operation or tap an RFID card on the ESP32 sensor.</p>
                 
                 <div class="choice-grid">
                     <div class="choice-card" id="choose-existing-btn">
@@ -302,10 +315,15 @@
                         <p style="font-size: 0.75rem; color: var(--text-muted);">Register First Member & Ration</p>
                     </div>
                 </div>
+
+                <div class="scan-indicator">
+                    <span class="material-icons">sensors</span>
+                    <span>Listening for RC522 RFID Card Tap...</span>
+                </div>
             </div>
         </div>
 
-        <!-- 3. ADD / EDIT DETAILS FORM -->
+        <!-- 3. DETAILS FORM -->
         <div id="form-view" class="view-section">
             <button id="back-to-selection-btn" class="btn-secondary">
                 <span class="material-icons">arrow_back</span> Back
@@ -316,15 +334,15 @@
                 <p id="customer-msg" class="success-text">Saved successfully!</p>
                 <p id="customer-err" class="error-text">Operation failed.</p>
 
-                <!-- CARD UID ENTRY -->
+                <div class="scan-indicator">
+                    <span class="material-icons">sensors</span>
+                    <span>Tap card on RC522 to auto-fill UID</span>
+                </div>
+
+                <!-- CARD UID -->
                 <div class="form-group">
-                    <label>Card UID (Hex Format)</label>
-                    <input type="text" id="cust-uid" list="uid-suggestions" placeholder="Type Card UID (e.g., 44D2E81F)">
-                    <datalist id="uid-suggestions">
-                        <option value="D7C75C94"></option>
-                        <option value="23F5AB0F"></option>
-                        <option value="44D2E81F"></option>
-                    </datalist>
+                    <label>Card UID</label>
+                    <input type="text" id="cust-uid" placeholder="Tap card on ESP32 or enter UID...">
                 </div>
 
                 <div id="card-status-badge" style="display: none; align-self: flex-start;"></div>
@@ -334,7 +352,7 @@
                     <input type="text" id="cust-ration" placeholder="e.g. RC1003">
                 </div>
 
-                <!-- MEMBER 1 DETAILS (REQUIRED) -->
+                <!-- MEMBER 1 -->
                 <div class="member-box">
                     <h4><span class="material-icons">person</span> Member 1 (Primary)</h4>
                     <div class="form-row">
@@ -349,9 +367,9 @@
                     </div>
                 </div>
 
-                <!-- MEMBER 2 DETAILS (OPTIONAL) -->
+                <!-- MEMBER 2 (OPTIONAL) -->
                 <div class="member-box">
-                    <h4><span class="material-icons">person_outline</span> Member 2 (Optional / Can add later)</h4>
+                    <h4><span class="material-icons">person_outline</span> Member 2 (Optional)</h4>
                     <div class="form-row">
                         <div class="form-group">
                             <label>Name</label>
@@ -392,7 +410,7 @@
                     <div class="spinner"></div>
                     <div>
                         <strong>Waiting for ESP32...</strong>
-                        <p id="fp-status-msg" style="margin: 0; font-size: 0.8rem;">Please scan Member 1's finger on hardware sensor.</p>
+                        <p id="fp-status-msg" style="margin: 0; font-size: 0.8rem;">Please scan finger on hardware sensor.</p>
                     </div>
                 </div>
 
@@ -407,7 +425,7 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getDatabase, ref, get, set, update, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
-        // Firebase Configuration
+        // Firebase Setup
         const firebaseConfig = {
             apiKey: "AIzaSyBRcy-3Rmatm8uN2eUfFUrKvPJ8nqbvWNs",
             authDomain: "automatic-ration-shop-a934b.firebaseapp.com",
@@ -421,12 +439,12 @@
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
 
-        // Views
+        // UI Views
         const loginView = document.getElementById("login-view");
         const selectionView = document.getElementById("selection-view");
         const formView = document.getElementById("form-view");
 
-        // UI Controls
+        // Controls
         const logoutBtn = document.getElementById("logout-btn");
         const loginError = document.getElementById("login-error");
         const customerMsg = document.getElementById("customer-msg");
@@ -449,13 +467,14 @@
             if (isLoggedIn) {
                 showView(selectionView);
                 logoutBtn.style.display = "flex";
+                startRfidListener();
             } else {
                 showView(loginView);
                 logoutBtn.style.display = "none";
             }
         }
 
-        // 1. Initial State Check
+        // 1. Initial Login Check
         async function checkInitialLoginStatus() {
             try {
                 const snapshot = await get(ref(db, 'admin/login'));
@@ -470,13 +489,12 @@
         }
         checkInitialLoginStatus();
 
-        // 2. Admin Login
+        // 2. Login Action
         document.getElementById("login-btn").addEventListener("click", async () => {
             const usernameInput = document.getElementById("login-userid").value.trim();
             const passwordInput = document.getElementById("login-password").value.trim();
 
             loginError.style.display = "none";
-
             if (!usernameInput || !passwordInput) {
                 loginError.innerText = "Please enter both User ID and Password.";
                 loginError.style.display = "block";
@@ -492,8 +510,6 @@
                     const data = snap.val();
                     validUser = data.username || validUser;
                     validPass = data.password || validPass;
-                } else {
-                    await set(ref(db, 'admin/credentials'), { username: validUser, password: validPass });
                 }
 
                 if (usernameInput === validUser && passwordInput === validPass) {
@@ -509,7 +525,7 @@
             }
         });
 
-        // 3. Choice Handlers
+        // 3. Navigation Controls
         document.getElementById("choose-existing-btn").addEventListener("click", () => {
             formTitle.innerText = "Existing Card - View / Update";
             resetForm();
@@ -526,23 +542,28 @@
             showView(selectionView);
         });
 
-        // 4. Logout
         logoutBtn.addEventListener("click", async () => {
-            try {
-                await update(ref(db, 'admin'), { login: false });
-            } catch (e) {}
+            try { await update(ref(db, 'admin'), { login: false }); } catch (e) {}
             setLoginState(false);
         });
 
-        // 5. Lookup UID on Input
-        cardUidInput.addEventListener("input", async () => {
-            const rawUid = cardUidInput.value.replace(/\s+/g, '').toUpperCase();
-            if (rawUid.length < 4) {
-                cardStatusBadge.style.display = "none";
-                return;
-            }
+        // 4. Real-Time ESP32 RFID Tap Listener
+        function startRfidListener() {
+            const scannedCardRef = ref(db, 'system/lastScannedCard');
+            onValue(scannedCardRef, (snapshot) => {
+                const uid = snapshot.val();
+                if (uid && uid.length >= 4) {
+                    cardUidInput.value = uid;
+                    showView(formView);
+                    lookupCardDetails(uid);
+                }
+            });
+        }
 
-            const formattedKey = rawUid.startsWith("RFID_") ? rawUid : `RFID_${rawUid}`;
+        // 5. Look up existing data for UID
+        async function lookupCardDetails(rawUid) {
+            const cleanUid = rawUid.replace(/\s+/g, '').toUpperCase();
+            const formattedKey = cleanUid.startsWith("RFID_") ? cleanUid : `RFID_${cleanUid}`;
 
             try {
                 const snapshot = await get(ref(db, `cards/${formattedKey}`));
@@ -568,7 +589,13 @@
                     resetFormFieldsExceptUid();
                 }
             } catch (err) {
-                console.error("Error reading card:", err);
+                console.error("Error fetching card data:", err);
+            }
+        }
+
+        cardUidInput.addEventListener("input", () => {
+            if (cardUidInput.value.trim().length >= 4) {
+                lookupCardDetails(cardUidInput.value);
             }
         });
 
@@ -592,14 +619,14 @@
             resetFormFieldsExceptUid();
         }
 
-        // 6. Save Card & Sync Fingerprint to ESP32
+        // 6. Save Card & Send Enroll Command to ESP32
         document.getElementById("save-card-btn").addEventListener("click", async () => {
             customerMsg.style.display = "none";
             customerErr.style.display = "none";
 
             const rawUid = cardUidInput.value.replace(/\s+/g, '').toUpperCase();
             if (!rawUid) {
-                customerErr.innerText = "Please enter or scan a Card UID.";
+                customerErr.innerText = "Please scan or enter a Card UID.";
                 customerErr.style.display = "block";
                 return;
             }
@@ -608,7 +635,7 @@
             const m1FpId = parseInt(document.getElementById("m1-fpid").value) || 0;
 
             if (!m1Name || m1FpId === 0) {
-                customerErr.innerText = "Please provide Member 1's Name and Fingerprint ID.";
+                customerErr.innerText = "Member 1 Name and Fingerprint ID are required.";
                 customerErr.style.display = "block";
                 return;
             }
@@ -619,47 +646,36 @@
 
             const cardData = {
                 rationCardNo: document.getElementById("cust-ration").value.trim() || "RC1001",
-                member1: {
-                    name: m1Name,
-                    fingerprintId: m1FpId
-                },
-                member2: {
-                    name: m2Name,
-                    fingerprintId: m2FpId
-                },
+                member1: { name: m1Name, fingerprintId: m1FpId },
+                member2: { name: m2Name, fingerprintId: m2FpId },
                 rice: parseFloat(document.getElementById("cust-rice").value) || 0,
                 wheat: parseFloat(document.getElementById("cust-wheat").value) || 0,
                 amount: parseFloat(document.getElementById("cust-amount").value) || 0,
                 upi: parseInt(document.getElementById("cust-upi").value) || 1234,
-                paid: false,
-                collected: false,
-                collectedBy: "",
-                collectionTime: ""
+                paid: false, collected: false, collectedBy: "", collectionTime: ""
             };
 
             try {
-                // Save to Firebase Database
                 await set(ref(db, `cards/${cardKey}`), cardData);
                 await set(ref(db, 'system/activeCardId'), cardKey);
 
-                // Send command to ESP32 hardware to enroll Member 1's fingerprint
+                // Send Enrollment Command to ESP32 Hardware
                 await set(ref(db, 'system/fpCommand'), {
                     action: "ENROLL",
                     targetFingerId: m1FpId,
                     cardId: cardKey
                 });
 
-                // Display waiting spinner for hardware enrollment
                 fpWaitBox.style.display = "flex";
                 fpStatusMsg.innerText = `Place finger for ${m1Name} (ID: ${m1FpId}) on ESP32 sensor...`;
 
-                // Real-time listener for ESP32 sensor completion
+                // Real-time Enrollment Progress Listener
                 const fpStatusRef = ref(db, 'system/fpStatus');
                 onValue(fpStatusRef, (snapshot) => {
                     const status = snapshot.val();
                     if (status && status.state === "SUCCESS") {
                         fpWaitBox.style.display = "none";
-                        customerMsg.innerText = `Card created & Fingerprint ${m1FpId} registered for ${m1Name}!`;
+                        customerMsg.innerText = `Card saved & Fingerprint ${m1FpId} registered for ${m1Name}!`;
                         customerMsg.style.display = "block";
                     } else if (status && status.state === "ERROR") {
                         fpStatusMsg.innerText = "Fingerprint enrollment failed on ESP32. Try scanning again.";
@@ -667,7 +683,7 @@
                 });
 
             } catch (err) {
-                customerErr.innerText = "Failed to communicate with Firebase.";
+                customerErr.innerText = "Failed to sync with Firebase.";
                 customerErr.style.display = "block";
             }
         });
