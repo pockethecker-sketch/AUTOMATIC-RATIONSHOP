@@ -1,0 +1,1286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Automatic Ration Shop</title>
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <!-- html5-qrcode library -->
+    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+    <style>
+        /* ========================================
+           CSS VARIABLES & RESET
+           ======================================== */
+        :root {
+            --primary-blue: #0d47a1;
+            --primary-light: #1976d2;
+            --accent-green: #2e7d32;
+            --accent-red: #c62828;
+            --bg-color: #f4f6f9;
+            --card-bg: #ffffff;
+            --text-main: #333333;
+            --text-muted: #666666;
+            --border-color: #e0e0e0;
+            --shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+            --radius: 12px;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .view-container {
+            display: none;
+            flex: 1;
+            flex-direction: column;
+            width: 100%;
+        }
+
+        .view-container.active {
+            display: flex;
+        }
+
+        /* ========================================
+           APP BAR & HEADERS
+           ======================================== */
+        .app-bar {
+            background-color: var(--primary-blue);
+            color: #ffffff;
+            padding: 16px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .app-bar-brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .app-bar h2 {
+            font-size: 1.15rem;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+        }
+
+        .offline-badge {
+            background-color: var(--accent-red);
+            color: white;
+            padding: 4px 8px;
+            font-size: 0.75rem;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+
+        /* ========================================
+           LAYOUT & CONTAINERS
+           ======================================== */
+        .main-container {
+            flex: 1;
+            padding: 20px;
+            max-width: 500px;
+            width: 100%;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .centered-body {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            flex: 1;
+        }
+
+        /* ========================================
+           SPLASH SCREEN
+           ======================================== */
+        #splash-view {
+            background: linear-gradient(135deg, var(--primary-blue), var(--primary-light));
+            color: white;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            z-index: 2000;
+        }
+
+        .splash-container {
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .splash-logo {
+            width: 100px;
+            height: 100px;
+            object-fit: contain;
+            background: white;
+            padding: 12px;
+            border-radius: 50%;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+        }
+
+        .splash-title {
+            font-size: 1.8rem;
+            font-weight: 700;
+        }
+
+        .splash-subtitle {
+            font-size: 0.95rem;
+            opacity: 0.85;
+            letter-spacing: 1px;
+        }
+
+        /* ========================================
+           HOME PAGE COMPONENTS
+           ======================================== */
+        .gov-emblem-card {
+            background: var(--card-bg);
+            padding: 24px;
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .home-logo {
+            width: 70px;
+            height: 70px;
+            object-fit: contain;
+        }
+
+        .gov-emblem-card h3 {
+            color: var(--primary-blue);
+            font-size: 1.1rem;
+        }
+
+        .gov-emblem-card p {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            line-height: 1.4;
+        }
+
+        /* ========================================
+           BUTTONS & INTERACTIONS
+           ======================================== */
+        .btn-primary {
+            background-color: var(--primary-light);
+            color: white;
+            border: none;
+            width: 100%;
+            padding: 16px;
+            border-radius: var(--radius);
+            font-size: 1rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            cursor: pointer;
+            box-shadow: 0 4px 10px rgba(25, 118, 210, 0.3);
+            transition: background 0.2s, transform 0.1s;
+        }
+
+        .btn-primary:active {
+            transform: scale(0.98);
+        }
+
+        .btn-primary:disabled {
+            background-color: #b0bec5;
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+
+        .btn-secondary {
+            background-color: var(--primary-blue);
+            color: white;
+            border: none;
+            padding: 10px 24px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .btn-text {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            font-weight: 600;
+            cursor: pointer;
+            padding: 10px;
+        }
+
+        .icon-btn {
+            background: none;
+            border: none;
+            color: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+        }
+
+        /* ========================================
+           QR SCANNER MODAL
+           ======================================== */
+        .scanner-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.85);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+        }
+
+        .scanner-content {
+            background: white;
+            width: 100%;
+            max-width: 400px;
+            border-radius: var(--radius);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .scanner-header {
+            padding: 14px 16px;
+            background: var(--primary-blue);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        #reader {
+            width: 100% !important;
+            border: none !important;
+        }
+
+        .scanner-hint {
+            padding: 12px;
+            text-align: center;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+
+        /* ========================================
+           DETAILS PAGE CARDS
+           ======================================== */
+        .details-card {
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            margin-bottom: 70px;
+        }
+
+        .card-header-badge {
+            background: #e3f2fd;
+            color: var(--primary-blue);
+            padding: 8px 12px;
+            border-radius: 8px;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            align-self: flex-start;
+        }
+
+        .info-group label {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+        }
+
+        .info-group p {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--text-main);
+            margin-top: 2px;
+        }
+
+        .info-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+
+        .divider {
+            border: none;
+            border-top: 1px solid var(--border-color);
+        }
+
+        .ration-allocation h4 {
+            font-size: 0.95rem;
+            color: var(--primary-blue);
+            margin-bottom: 12px;
+        }
+
+        .allocation-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px;
+            background: #fafafa;
+            border-radius: 8px;
+            margin-bottom: 8px;
+        }
+
+        .allocation-item .material-icons {
+            color: var(--primary-light);
+            font-size: 24px;
+        }
+
+        .allocation-item div {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .item-name {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+
+        .amount-section {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #f1f8e9;
+            padding: 14px;
+            border-radius: 8px;
+            color: #33691e;
+        }
+
+        .amount-section h2 {
+            font-size: 1.5rem;
+        }
+
+        .status-section {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .badge-paid {
+            background-color: var(--accent-green);
+            color: white;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-weight: bold;
+            font-size: 0.85rem;
+        }
+
+        .badge-not-paid {
+            background-color: var(--accent-red);
+            color: white;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-weight: bold;
+            font-size: 0.85rem;
+        }
+
+        .sticky-footer {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            background: white;
+            padding: 12px 20px;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.08);
+            z-index: 90;
+        }
+
+        /* ========================================
+           REALISTIC FULL-SCREEN UPI APP INTERFACE
+           ======================================== */
+        #upi-app-fullscreen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: #fdfdfd;
+            z-index: 1500;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .gpay-top-bar {
+            padding: 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: #3c4043;
+        }
+
+        .gpay-pay-view {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: space-between;
+            padding: 24px;
+            max-width: 420px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        .merchant-avatar {
+            width: 64px;
+            height: 64px;
+            border-radius: 50%;
+            background: #e8f0fe;
+            color: #1a73e8;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            margin-bottom: 8px;
+        }
+
+        .gpay-amount {
+            font-size: 3rem;
+            font-weight: 500;
+            color: #202124;
+            margin: 12px 0;
+        }
+
+        .account-card {
+            width: 100%;
+            background: #f1f3f4;
+            border-radius: 16px;
+            padding: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 16px;
+        }
+
+        .gpay-blue-btn {
+            width: 100%;
+            background: #1a73e8;
+            color: white;
+            border: none;
+            padding: 16px;
+            border-radius: 28px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            box-shadow: 0 2px 6px rgba(26,115,232,0.3);
+        }
+
+        /* --- SCREEN 2: PIN ENTRY VIEW --- */
+        .pin-screen-header {
+            padding: 20px;
+            text-align: center;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .pin-dots-wrapper {
+            display: flex;
+            gap: 16px;
+            justify-content: center;
+            margin: 30px 0 20px 0;
+        }
+
+        .pin-dot {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            border: 2px solid #5f6368;
+            transition: all 0.2s ease;
+        }
+
+        .pin-dot.filled {
+            background: #202124;
+            border-color: #202124;
+        }
+
+        .hidden-pin-input {
+            position: absolute;
+            opacity: 0;
+            pointer-events: auto;
+            width: 100%;
+            height: 100%;
+            top: 0;
+            left: 0;
+        }
+
+        /* --- SCREEN 3: REALISTIC SUCCESS ANIMATION SCREEN --- */
+        .gpay-success-screen {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 20px;
+            background: #ffffff;
+        }
+
+        .gpay-check-circle {
+            width: 100px;
+            height: 100px;
+            background: #1a73e8;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 60px;
+            box-shadow: 0 8px 24px rgba(26,115,232,0.3);
+            animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        @keyframes popIn {
+            0% { transform: scale(0); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        /* ========================================
+           RECEIPT & SUCCESS CARDS
+           ======================================== */
+        .processing-card, .success-card {
+            background: white;
+            padding: 30px;
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            text-align: center;
+            max-width: 400px;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .success-checkmark {
+            font-size: 64px;
+            color: var(--accent-green);
+        }
+
+        .success-sub {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+        }
+
+        .receipt-summary {
+            width: 100%;
+            background: #fafafa;
+            border-radius: 8px;
+            padding: 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            text-align: left;
+            font-size: 0.9rem;
+        }
+
+        .receipt-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 4px 0;
+            border-bottom: 1px dashed var(--border-color);
+        }
+
+        .receipt-row:last-child {
+            border-bottom: none;
+        }
+
+        /* ========================================
+           MODALS & OVERLAYS
+           ======================================== */
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.6);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            padding: 16px;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 24px;
+            border-radius: var(--radius);
+            width: 100%;
+            max-width: 360px;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .error-content .error-icon {
+            font-size: 48px;
+            color: var(--accent-red);
+        }
+
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255,255,255,0.9);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 1100;
+            gap: 12px;
+            color: var(--primary-blue);
+            font-weight: 600;
+        }
+
+        .spinner-large {
+            width: 48px;
+            height: 48px;
+            border: 4px solid #e0e0e0;
+            border-radius: 50%;
+            border-top-color: var(--primary-light);
+            animation: spin 0.8s linear infinite;
+            margin: 0 auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .upi-app-btn {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            background: #fff;
+            font-weight: 600;
+            font-size: 0.95rem;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- ================= 1. SPLASH VIEW ================= -->
+    <div id="splash-view" class="view-container active">
+        <div class="splash-container">
+            <div class="logo-wrapper">
+                <img src="assets/logo.png" alt="Ration Shop Logo" class="splash-logo" onerror="this.src='https://via.placeholder.com/120?text=GOV'">
+            </div>
+            <h1 class="splash-title">Automatic Ration Shop</h1>
+            <p class="splash-subtitle">Government of Digital Distribution</p>
+            <div class="spinner-large" style="border-top-color: white; border-color: rgba(255,255,255,0.3);"></div>
+        </div>
+    </div>
+
+    <!-- ================= 2. HOME VIEW ================= -->
+    <div id="home-view" class="view-container">
+        <header class="app-bar">
+            <div class="app-bar-brand">
+                <span class="material-icons">account_balance</span>
+                <h2>Automatic Ration Shop</h2>
+            </div>
+            <div id="offline-indicator" class="offline-badge" style="display: none;">Offline</div>
+        </header>
+
+        <main class="main-container">
+            <div class="gov-emblem-card">
+                <img src="assets/logo.png" alt="Emblem" class="home-logo" onerror="this.src='https://via.placeholder.com/80?text=GOV'">
+                <h3>Public Distribution System (PDS)</h3>
+                <p>Scan your official ration card QR code to proceed with verification and automated distribution.</p>
+            </div>
+
+            <div class="action-card">
+                <button id="scan-btn" class="btn-primary ripple">
+                    <span class="material-icons">qr_code_scanner</span>
+                    SCAN QR CODE
+                </button>
+            </div>
+
+            <!-- QR Scanner Container Modal -->
+            <div id="scanner-container" class="scanner-modal" style="display: none;">
+                <div class="scanner-content">
+                    <div class="scanner-header">
+                        <h4>Scan Official QR</h4>
+                        <button id="close-scanner" class="icon-btn"><span class="material-icons">close</span></button>
+                    </div>
+                    <div id="reader"></div>
+                    <p class="scanner-hint">Align the QR code within the frame to scan.</p>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- ================= 3. DETAILS VIEW ================= -->
+    <div id="details-view" class="view-container">
+        <header class="app-bar">
+            <div class="app-bar-brand">
+                <button id="back-home-btn" class="icon-btn"><span class="material-icons">arrow_back</span></button>
+                <h2>Beneficiary Details</h2>
+            </div>
+        </header>
+
+        <main class="main-container">
+            <div class="details-card">
+                <div class="card-header-badge">
+                    <span class="material-icons">badge</span>
+                    <span id="lbl-customer-id">ID: Loading...</span>
+                </div>
+
+                <div class="info-group">
+                    <label>Beneficiary Name</label>
+                    <p id="lbl-name">Loading...</p>
+                </div>
+
+                <div class="info-row">
+                    <div class="info-group">
+                        <label>Age</label>
+                        <p id="lbl-age">--</p>
+                    </div>
+                    <div class="info-group">
+                        <label>Phone Number</label>
+                        <p id="lbl-phone">--</p>
+                    </div>
+                </div>
+
+                <hr class="divider">
+
+                <div class="ration-allocation">
+                    <h4>Monthly Allocation</h4>
+                    <div class="allocation-item">
+                        <span class="material-icons">rice_bowl</span>
+                        <div>
+                            <span class="item-name">Rice</span>
+                            <strong id="lbl-rice">-- kg</strong>
+                        </div>
+                    </div>
+                    <div class="allocation-item">
+                        <span class="material-icons">bakery_dining</span>
+                        <div>
+                            <span class="item-name">Wheat</span>
+                            <strong id="lbl-wheat">-- kg</strong>
+                        </div>
+                    </div>
+                </div>
+
+                <hr class="divider">
+
+                <div class="amount-section">
+                    <span>Total Payable Amount</span>
+                    <h2 id="lbl-amount">₹0</h2>
+                </div>
+
+                <div class="status-section">
+                    <span>Payment Status:</span>
+                    <div id="status-badge" class="badge-not-paid">NOT PAID</div>
+                </div>
+            </div>
+        </main>
+
+        <footer class="sticky-footer">
+            <button id="pay-now-btn" class="btn-primary ripple" disabled>
+                <span class="material-icons">payment</span>
+                PAY NOW
+            </button>
+        </footer>
+    </div>
+
+    <!-- ================= 4. PROCESSING VIEW ================= -->
+    <div id="processing-view" class="view-container">
+        <div class="centered-body">
+            <div class="processing-card">
+                <div class="spinner-large"></div>
+                <h3>Verifying with Bank...</h3>
+                <p>Authenticating UPI credentials. Please wait.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= 5. FINAL RECEIPT SUCCESS VIEW ================= -->
+    <div id="success-view" class="view-container">
+        <div class="centered-body">
+            <div class="success-card">
+                <span class="material-icons success-checkmark">check_circle</span>
+                <h2>Payment Successful</h2>
+                <p class="success-sub">Ration distributed successfully. Please collect your items.</p>
+
+                <div class="receipt-summary">
+                    <div class="receipt-row">
+                        <span>Beneficiary</span>
+                        <strong id="rcpt-name">--</strong>
+                    </div>
+                    <div class="receipt-row">
+                        <span>Rice Allocated</span>
+                        <strong id="rcpt-rice">-- kg</strong>
+                    </div>
+                    <div class="receipt-row">
+                        <span>Wheat Allocated</span>
+                        <strong id="rcpt-wheat">-- kg</strong>
+                    </div>
+                    <div class="receipt-row">
+                        <span>Amount Paid</span>
+                        <strong id="rcpt-amount">--</strong>
+                    </div>
+                    <div class="receipt-row">
+                        <span>Timestamp</span>
+                        <strong id="rcpt-time">--</strong>
+                    </div>
+                </div>
+
+                <button id="back-home-final" class="btn-primary ripple">
+                    <span class="material-icons">home</span>
+                    BACK TO HOME
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= INITIAL PAYMENT SELECTOR POPUP ================= -->
+    <div id="payment-app-modal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <h3>Select Payment Option</h3>
+            <p style="font-size: 0.85rem; color: #666;">Choose your app to pay ₹<span id="popup-pay-amount">0</span></p>
+            <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 10px;">
+                <button class="upi-app-btn" id="popup-gpay">
+                    <span>Google Pay</span>
+                    <span class="material-icons" style="color: #4285F4;">account_balance_wallet</span>
+                </button>
+                <button class="upi-app-btn" id="popup-phonepe">
+                    <span>PhonePe</span>
+                    <span class="material-icons" style="color: #5f259f;">account_balance_wallet</span>
+                </button>
+                <button class="upi-app-btn" id="popup-paytm">
+                    <span>Paytm</span>
+                    <span class="material-icons" style="color: #002e6e;">account_balance_wallet</span>
+                </button>
+            </div>
+            <button id="close-app-popup" class="btn-text" style="margin-top: 8px;">Cancel</button>
+        </div>
+    </div>
+
+    <!-- ================= FULL-SCREEN REALISTIC UPI APP INTERFACE ================= -->
+    <div id="upi-app-fullscreen" style="display: none;">
+        
+        <!-- STEP 1: PAYMENT CONFIRMATION SCREEN -->
+        <div id="gpay-step-1" style="display: flex; flex-direction: column; height: 100%;">
+            <div class="gpay-top-bar">
+                <button id="gpay-close-btn" class="icon-btn" style="color: #3c4043;"><span class="material-icons">close</span></button>
+                <span class="material-icons">more_vert</span>
+            </div>
+
+            <div class="gpay-pay-view">
+                <div style="text-align: center; display: flex; flex-direction: column; align-items: center;">
+                    <div class="merchant-avatar">
+                        <span class="material-icons">storefront</span>
+                    </div>
+                    <h3 style="font-size: 1.1rem; color: #202124; margin-top: 4px;">Paying Government Ration Shop</h3>
+                    <p style="font-size: 0.85rem; color: #5f6368;" id="app-merchant-sub">PDS Automated System</p>
+                    <div class="gpay-amount">₹<span id="app-display-amount">0</span></div>
+                </div>
+
+                <div style="width: 100%;">
+                    <div class="account-card">
+                        <div style="display: flex; align-items: center; gap: 12px;">
+                            <span class="material-icons" style="color: #1a73e8;">account_balance</span>
+                            <div>
+                                <p style="font-weight: 600; font-size: 0.9rem;">UPI Lite / Bank Account</p>
+                                <p style="font-size: 0.75rem; color: #5f6368;">Primary Account Linked</p>
+                            </div>
+                        </div>
+                        <span class="material-icons" style="color: #5f6368;">keyboard_arrow_down</span>
+                    </div>
+                    <button id="gpay-proceed-btn" class="gpay-blue-btn">Pay ₹<span id="btn-display-amount">0</span></button>
+                </div>
+            </div>
+        </div>
+
+        <!-- STEP 2: ENTER 4-DIGIT UPI PIN SCREEN -->
+        <div id="gpay-step-2" style="display: none; flex-direction: column; height: 100%; position: relative;">
+            <div class="pin-screen-header">
+                <button id="pin-back-btn" class="icon-btn" style="color: #3c4043;"><span class="material-icons">arrow_back</span></button>
+                <span style="font-weight: 600; color: #3c4043;">UPI TRANSACTION</span>
+                <span class="material-icons" style="color: #3c4043;">security</span>
+            </div>
+
+            <div style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px;">
+                <h2 style="font-size: 1.3rem; color: #202124; font-weight: 500;">Enter 4-Digit UPI PIN</h2>
+                <p style="font-size: 0.85rem; color: #5f6368; margin-top: 4px;">Verify your transaction</p>
+
+                <!-- PIN Visual Dots -->
+                <div class="pin-dots-wrapper">
+                    <div class="pin-dot" id="dot-0"></div>
+                    <div class="pin-dot" id="dot-1"></div>
+                    <div class="pin-dot" id="dot-2"></div>
+                    <div class="pin-dot" id="dot-3"></div>
+                </div>
+
+                <!-- Invisible Input overlay to catch typing/keypad -->
+                <input type="password" id="gpay-pin-input" maxlength="4" class="hidden-pin-input" autofocus autocomplete="off">
+            </div>
+        </div>
+
+        <!-- STEP 3: ANIMATED SUCCESS CHECKMARK -->
+        <div id="gpay-step-3" class="gpay-success-screen" style="display: none;">
+            <div class="gpay-check-circle">
+                <span class="material-icons" style="font-size: 64px;">check</span>
+            </div>
+            <h2 style="color: #202124; font-weight: 500;">Payment Successful</h2>
+        </div>
+
+    </div>
+
+    <!-- ================= COMMON MODALS ================= -->
+    <div id="error-modal" class="modal" style="display: none;">
+        <div class="modal-content error-content">
+            <span class="material-icons error-icon">error_outline</span>
+            <h3>Transaction Failed</h3>
+            <p id="error-message">Invalid 4-digit UPI PIN.</p>
+            <button id="close-error" class="btn-secondary">OK</button>
+        </div>
+    </div>
+
+    <div id="loading-overlay" class="loading-overlay" style="display: none;">
+        <div class="spinner-large"></div>
+        <p id="loading-text">Processing request...</p>
+    </div>
+
+    <!-- ================= APPLICATION LOGIC ================= -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getDatabase, ref, get, update } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+
+        // Firebase Configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyBCR5uvzEKrJbXi_SsCWM3JAGHdcdgHGLo",
+            authDomain: "automatic-ration-shop-f1a58.firebaseapp.com",
+            databaseURL: "https://automatic-ration-shop-f1a58-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "automatic-ration-shop-f1a58",
+            storageBucket: "automatic-ration-shop-f1a58.firebasestorage.app",
+            messagingSenderId: "93161186464",
+            appId: "1:93161186464:web:63a15deb3300260471d5c5"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+
+        function showView(viewId) {
+            document.querySelectorAll('.view-container').forEach(el => el.classList.remove('active'));
+            document.getElementById(viewId).classList.add('active');
+        }
+
+        setTimeout(() => { showView('home-view'); }, 2000);
+
+        const offlineIndicator = document.getElementById("offline-indicator");
+        window.addEventListener('online', () => offlineIndicator.style.display = "none");
+        window.addEventListener('offline', () => offlineIndicator.style.display = "block");
+
+        // QR Scanner Logic
+        let html5QrCode = null;
+        const scanBtn = document.getElementById("scan-btn");
+        const scannerContainer = document.getElementById("scanner-container");
+        const closeScannerBtn = document.getElementById("close-scanner");
+        const errorModal = document.getElementById("error-modal");
+        const closeErrorBtn = document.getElementById("close-error");
+        const loadingOverlay = document.getElementById("loading-overlay");
+
+        scanBtn.addEventListener("click", async () => {
+            scannerContainer.style.display = "flex";
+            try {
+                let stream = null;
+                try {
+                    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { exact: "environment" } } });
+                } catch (err) {
+                    stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                }
+                if (stream) stream.getTracks().forEach(track => track.stop());
+
+                if (!html5QrCode) html5QrCode = new Html5Qrcode("reader");
+
+                await html5QrCode.start(
+                    { facingMode: "environment" },
+                    { fps: 10, qrbox: { width: 250, height: 250 } },
+                    async (decodedText) => { await handleScanResult(decodedText.trim()); },
+                    (err) => {}
+                );
+            } catch (err) {
+                await stopScanner();
+                showError("Camera access required for QR scanning.");
+            }
+        });
+
+        async function stopScanner() {
+            if (html5QrCode && html5QrCode.isScanning) {
+                try {
+                    await html5QrCode.stop();
+                    await html5QrCode.clear();
+                } catch (e) {}
+            }
+            scannerContainer.style.display = "none";
+        }
+
+        closeScannerBtn.addEventListener("click", stopScanner);
+
+        async function handleScanResult(qrText) {
+            if (qrText !== "RATIONSHOP") {
+                await stopScanner();
+                showError("Invalid QR Code. Please scan official Ration Shop QR.");
+                return;
+            }
+
+            await stopScanner();
+            loadingOverlay.style.display = "flex";
+
+            try {
+                const snapshot = await get(ref(db, 'system/currentCustomer'));
+                if (snapshot.exists()) {
+                    const customerId = snapshot.val();
+                    sessionStorage.setItem("activeCustomerId", customerId);
+                    await loadCustomerDetails(customerId);
+                } else {
+                    loadingOverlay.style.display = "none";
+                    showError("No active customer found.");
+                }
+            } catch (error) {
+                loadingOverlay.style.display = "none";
+                showError("Database connectivity error.");
+            }
+        }
+
+        function showError(msg) {
+            document.getElementById("error-message").innerText = msg;
+            errorModal.style.display = "flex";
+        }
+        closeErrorBtn.addEventListener("click", () => errorModal.style.display = "none");
+
+        async function loadCustomerDetails(customerId) {
+            try {
+                const snapshot = await get(ref(db, `customers/${customerId}`));
+                loadingOverlay.style.display = "none";
+
+                if (snapshot.exists()) {
+                    const data = snapshot.val();
+                    document.getElementById("lbl-customer-id").innerText = `ID: ${data.customerId || customerId}`;
+                    document.getElementById("lbl-name").innerText = data.name || "N/A";
+                    document.getElementById("lbl-age").innerText = data.age || "--";
+                    document.getElementById("lbl-phone").innerText = data.phone || "--";
+                    document.getElementById("lbl-rice").innerText = `${data.rice || 0} kg`;
+                    document.getElementById("lbl-wheat").innerText = `${data.wheat || 0} kg`;
+                    document.getElementById("lbl-amount").innerText = `₹${data.amount || 0}`;
+
+                    sessionStorage.setItem("customerReceipt", JSON.stringify(data));
+
+                    const statusBadge = document.getElementById("status-badge");
+                    const payNowBtn = document.getElementById("pay-now-btn");
+
+                    if (data.paid === true) {
+                        statusBadge.innerText = "PAID";
+                        statusBadge.className = "badge-paid";
+                        payNowBtn.disabled = true;
+                        payNowBtn.innerHTML = '<span class="material-icons">check</span> ALREADY PAID';
+                    } else {
+                        statusBadge.innerText = "NOT PAID";
+                        statusBadge.className = "badge-not-paid";
+                        payNowBtn.disabled = false;
+                        payNowBtn.innerHTML = '<span class="material-icons">payment</span> PAY NOW';
+                    }
+
+                    showView('details-view');
+                } else {
+                    showError("Customer record missing.");
+                    showView('home-view');
+                }
+            } catch (e) {
+                loadingOverlay.style.display = "none";
+                showError("Failed to fetch customer profile.");
+                showView('home-view');
+            }
+        }
+
+        document.getElementById("back-home-btn").addEventListener("click", () => showView('home-view'));
+
+        // ================= FULL SCREEN APP LOGIC =================
+        const payNowBtn = document.getElementById("pay-now-btn");
+        const appModal = document.getElementById("payment-app-modal");
+        const fullScreenApp = document.getElementById("upi-app-fullscreen");
+
+        const step1 = document.getElementById("gpay-step-1");
+        const step2 = document.getElementById("gpay-step-2");
+        const step3 = document.getElementById("gpay-step-3");
+
+        const pinInput = document.getElementById("gpay-pin-input");
+
+        payNowBtn.addEventListener("click", () => {
+            const data = JSON.parse(sessionStorage.getItem("customerReceipt") || "{}");
+            document.getElementById("popup-pay-amount").innerText = data.amount || 0;
+            appModal.style.display = "flex";
+        });
+
+        document.getElementById("close-app-popup").addEventListener("click", () => {
+            appModal.style.display = "none";
+        });
+
+        function launchFullScreenApp(appName) {
+            appModal.style.display = "none";
+            const data = JSON.parse(sessionStorage.getItem("customerReceipt") || "{}");
+
+            document.getElementById("app-display-amount").innerText = data.amount || 0;
+            document.getElementById("btn-display-amount").innerText = data.amount || 0;
+
+            step1.style.display = "flex";
+            step2.style.display = "none";
+            step3.style.display = "none";
+
+            fullScreenApp.style.display = "flex";
+        }
+
+        document.getElementById("popup-gpay").addEventListener("click", () => launchFullScreenApp("Google Pay"));
+        document.getElementById("popup-phonepe").addEventListener("click", () => launchFullScreenApp("PhonePe"));
+        document.getElementById("popup-paytm").addEventListener("click", () => launchFullScreenApp("Paytm"));
+
+        document.getElementById("gpay-close-btn").addEventListener("click", () => {
+            fullScreenApp.style.display = "none";
+        });
+
+        // Step 1 -> Proceed to PIN entry Screen
+        document.getElementById("gpay-proceed-btn").addEventListener("click", () => {
+            step1.style.display = "none";
+            step2.style.display = "flex";
+            pinInput.value = "";
+            updatePinDots("");
+            pinInput.focus();
+        });
+
+        document.getElementById("pin-back-btn").addEventListener("click", () => {
+            step2.style.display = "none";
+            step1.style.display = "flex";
+        });
+
+        // PIN Input typing handler
+        pinInput.addEventListener("input", (e) => {
+            const val = e.target.value;
+            updatePinDots(val);
+
+            // Trigger Check automatically when 4 digits are entered
+            if (val.length === 4) {
+                verifyPinAndPay(val);
+            }
+        });
+
+        function updatePinDots(val) {
+            for (let i = 0; i < 4; i++) {
+                const dot = document.getElementById(`dot-${i}`);
+                if (i < val.length) {
+                    dot.classList.add("filled");
+                } else {
+                    dot.classList.remove("filled");
+                }
+            }
+        }
+
+        // Verify ONLY the 4-digit UPI PIN against Firebase customer record
+        async function verifyPinAndPay(enteredPin) {
+            const customerData = JSON.parse(sessionStorage.getItem("customerReceipt") || "{}");
+            
+            // Expected 4-digit PIN stored in customer Firebase bucket (defaults to '1234')
+            const expectedPin = String(customerData.pin || "1234").trim();
+
+            if (enteredPin === expectedPin) {
+                // Correct PIN -> Show GPay Checkmark Animation Screen
+                step2.style.display = "none";
+                step3.style.display = "flex";
+
+                const customerId = sessionStorage.getItem("activeCustomerId");
+                const timestamp = new Date().toISOString();
+
+                setTimeout(async () => {
+                    try {
+                        // Update Firebase database
+                        await update(ref(db, `customers/${customerId}`), {
+                            paid: true,
+                            paymentTime: timestamp
+                        });
+
+                        let receipt = JSON.parse(sessionStorage.getItem("customerReceipt") || "{}");
+                        receipt.paymentTime = timestamp;
+                        sessionStorage.setItem("customerReceipt", JSON.stringify(receipt));
+
+                        fullScreenApp.style.display = "none";
+                        populateSuccessScreen();
+                        showView('success-view');
+                    } catch (err) {
+                        fullScreenApp.style.display = "none";
+                        showError("Payment verification failed. Please try again.");
+                        showView('home-view');
+                    }
+                }, 2000);
+            } else {
+                // Incorrect PIN
+                pinInput.value = "";
+                updatePinDots("");
+                showError("Incorrect UPI PIN. Please enter your valid 4-digit PIN.");
+            }
+        }
+
+        function populateSuccessScreen() {
+            const data = JSON.parse(sessionStorage.getItem("customerReceipt") || "{}");
+            document.getElementById("rcpt-name").innerText = data.name || "--";
+            document.getElementById("rcpt-rice").innerText = `${data.rice || 0} kg`;
+            document.getElementById("rcpt-wheat").innerText = `${data.wheat || 0} kg`;
+            document.getElementById("rcpt-amount").innerText = `₹${data.amount || 0}`;
+            document.getElementById("rcpt-time").innerText = data.paymentTime ? new Date(data.paymentTime).toLocaleString() : new Date().toLocaleString();
+        }
+
+        document.getElementById("back-home-final").addEventListener("click", () => {
+            sessionStorage.clear();
+            showView('home-view');
+        });
+    </script>
+</body>
+</html>
