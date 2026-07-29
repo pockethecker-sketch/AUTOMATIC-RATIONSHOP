@@ -15,7 +15,7 @@
             --primary-blue: #0d47a1;
             --primary-light: #1976d2;
             --accent-green: #2e7d32;
-            --accent-red: #c62828;
+            --accent-red: #d32f2f;
             --bg-color: #f4f6f9;
             --card-bg: #ffffff;
             --text-main: #333333;
@@ -546,7 +546,7 @@
             left: 0;
         }
 
-        /* --- SCREEN 3: REALISTIC SUCCESS ANIMATION SCREEN --- */
+        /* --- SCREEN 3: SUCCESS ANIMATION SCREEN --- */
         .gpay-success-screen {
             flex: 1;
             display: flex;
@@ -569,6 +569,43 @@
             font-size: 60px;
             box-shadow: 0 8px 24px rgba(26,115,232,0.3);
             animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        /* --- SCREEN 4: FAILED ANIMATION SCREEN (MATCHES IMAGE) --- */
+        .gpay-failed-screen {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 16px;
+            background: #fdf6f6;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .gpay-failed-circle {
+            width: 120px;
+            height: 120px;
+            background: #e50914;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            box-shadow: 0 8px 24px rgba(229, 9, 20, 0.25);
+            animation: popIn 0.3s ease-out;
+        }
+
+        .failed-title {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: #222222;
+        }
+
+        .failed-sub {
+            font-size: 1rem;
+            color: #666666;
         }
 
         @keyframes popIn {
@@ -596,11 +633,6 @@
         .success-checkmark {
             font-size: 64px;
             color: var(--accent-green);
-        }
-
-        .success-sub {
-            color: var(--text-muted);
-            font-size: 0.9rem;
         }
 
         .receipt-summary {
@@ -961,7 +993,7 @@
                     <div class="pin-dot" id="dot-3"></div>
                 </div>
 
-                <!-- Invisible Input overlay to catch typing/keypad -->
+                <!-- Hidden Input to catch keypad -->
                 <input type="password" id="gpay-pin-input" maxlength="4" class="hidden-pin-input" autofocus autocomplete="off">
             </div>
         </div>
@@ -974,14 +1006,23 @@
             <h2 style="color: #202124; font-weight: 500;">Payment Successful</h2>
         </div>
 
+        <!-- STEP 4: PAYMENT FAILED SCREEN (EXACT MATCH FOR IMAGE) -->
+        <div id="gpay-step-4" class="gpay-failed-screen" style="display: none;">
+            <div class="gpay-failed-circle">
+                <span class="material-icons" style="font-size: 80px;">priority_high</span>
+            </div>
+            <h2 class="failed-title">Your payment failed</h2>
+            <p class="failed-sub">Incorrect UPI PIN. Redirecting to home screen...</p>
+        </div>
+
     </div>
 
     <!-- ================= COMMON MODALS ================= -->
     <div id="error-modal" class="modal" style="display: none;">
         <div class="modal-content error-content">
             <span class="material-icons error-icon">error_outline</span>
-            <h3>Transaction Failed</h3>
-            <p id="error-message">Invalid 4-digit UPI PIN.</p>
+            <h3>Error</h3>
+            <p id="error-message">An error occurred.</p>
             <button id="close-error" class="btn-secondary">OK</button>
         </div>
     </div>
@@ -998,13 +1039,13 @@
 
         // Firebase Configuration
         const firebaseConfig = {
-            apiKey: "AIzaSyBRcy-3Rmatm8uN2eUfFUrKvPJ8nqbvWNs",
-  authDomain: "automatic-ration-shop-a934b.firebaseapp.com",
-  databaseURL: "https://automatic-ration-shop-a934b-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId: "automatic-ration-shop-a934b",
-  storageBucket: "automatic-ration-shop-a934b.firebasestorage.app",
-  messagingSenderId: "603540489454",
-  appId: "1:603540489454:web:c6336b05633c4a0fee1fff"
+            apiKey: "AIzaSyBCR5uvzEKrJbXi_SsCWM3JAGHdcdgHGLo",
+            authDomain: "automatic-ration-shop-f1a58.firebaseapp.com",
+            databaseURL: "https://automatic-ration-shop-f1a58-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "automatic-ration-shop-f1a58",
+            storageBucket: "automatic-ration-shop-f1a58.firebasestorage.app",
+            messagingSenderId: "93161186464",
+            appId: "1:93161186464:web:63a15deb3300260471d5c5"
         };
 
         const app = initializeApp(firebaseConfig);
@@ -1153,6 +1194,7 @@
         const step1 = document.getElementById("gpay-step-1");
         const step2 = document.getElementById("gpay-step-2");
         const step3 = document.getElementById("gpay-step-3");
+        const step4 = document.getElementById("gpay-step-4");
 
         const pinInput = document.getElementById("gpay-pin-input");
 
@@ -1166,7 +1208,7 @@
             appModal.style.display = "none";
         });
 
-        function launchFullScreenApp(appName) {
+        function launchFullScreenApp() {
             appModal.style.display = "none";
             const data = JSON.parse(sessionStorage.getItem("customerReceipt") || "{}");
 
@@ -1176,13 +1218,14 @@
             step1.style.display = "flex";
             step2.style.display = "none";
             step3.style.display = "none";
+            step4.style.display = "none";
 
             fullScreenApp.style.display = "flex";
         }
 
-        document.getElementById("popup-gpay").addEventListener("click", () => launchFullScreenApp("Google Pay"));
-        document.getElementById("popup-phonepe").addEventListener("click", () => launchFullScreenApp("PhonePe"));
-        document.getElementById("popup-paytm").addEventListener("click", () => launchFullScreenApp("Paytm"));
+        document.getElementById("popup-gpay").addEventListener("click", () => launchFullScreenApp());
+        document.getElementById("popup-phonepe").addEventListener("click", () => launchFullScreenApp());
+        document.getElementById("popup-paytm").addEventListener("click", () => launchFullScreenApp());
 
         document.getElementById("gpay-close-btn").addEventListener("click", () => {
             fullScreenApp.style.display = "none";
@@ -1207,7 +1250,7 @@
             const val = e.target.value;
             updatePinDots(val);
 
-            // Trigger Check automatically when 4 digits are entered
+            // Check immediately on entering 4 digits
             if (val.length === 4) {
                 verifyPinAndPay(val);
             }
@@ -1224,15 +1267,13 @@
             }
         }
 
-        // Verify ONLY the 4-digit UPI PIN against Firebase customer record
+        // Single-attempt PIN check logic
         async function verifyPinAndPay(enteredPin) {
             const customerData = JSON.parse(sessionStorage.getItem("customerReceipt") || "{}");
-            
-            // Expected 4-digit PIN stored in customer Firebase bucket (defaults to '1234')
             const expectedPin = String(customerData.pin || "1234").trim();
 
             if (enteredPin === expectedPin) {
-                // Correct PIN -> Show GPay Checkmark Animation Screen
+                // SUCCESS: Proceed to success checkmark screen and update Firebase
                 step2.style.display = "none";
                 step3.style.display = "flex";
 
@@ -1241,7 +1282,6 @@
 
                 setTimeout(async () => {
                     try {
-                        // Update Firebase database
                         await update(ref(db, `customers/${customerId}`), {
                             paid: true,
                             paymentTime: timestamp
@@ -1261,10 +1301,15 @@
                     }
                 }, 2000);
             } else {
-                // Incorrect PIN
-                pinInput.value = "";
-                updatePinDots("");
-                showError("Incorrect UPI PIN. Please enter your valid 4-digit PIN.");
+                // FAILURE: Show red Payment Failed screen immediately, then redirect to Home Screen
+                step2.style.display = "none";
+                step4.style.display = "flex";
+
+                setTimeout(() => {
+                    fullScreenApp.style.display = "none";
+                    sessionStorage.clear();
+                    showView('home-view');
+                }, 2500);
             }
         }
 
