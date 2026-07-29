@@ -506,10 +506,9 @@
             box-shadow: 0 2px 6px rgba(26,115,232,0.3);
         }
 
-        /* --- SCREEN 2: PIN ENTRY VIEW --- */
+        /* --- SCREEN 2: PIN ENTRY VIEW WITH IN-APP KEYBOARD --- */
         .pin-screen-header {
-            padding: 20px;
-            text-align: center;
+            padding: 16px 20px;
             border-bottom: 1px solid #eee;
             display: flex;
             justify-content: space-between;
@@ -520,15 +519,15 @@
             display: flex;
             gap: 16px;
             justify-content: center;
-            margin: 30px 0 20px 0;
+            margin: 20px 0;
         }
 
         .pin-dot {
-            width: 20px;
-            height: 20px;
+            width: 22px;
+            height: 22px;
             border-radius: 50%;
             border: 2px solid #5f6368;
-            transition: all 0.2s ease;
+            transition: all 0.15s ease;
         }
 
         .pin-dot.filled {
@@ -536,14 +535,53 @@
             border-color: #202124;
         }
 
-        .hidden-pin-input {
-            position: absolute;
-            opacity: 0;
-            pointer-events: auto;
+        /* Custom Keypad Grid matching UI design */
+        .inbuilt-keypad {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            border-top: 1px solid #e0e0e0;
+            background: #ffffff;
             width: 100%;
-            height: 100%;
-            top: 0;
-            left: 0;
+            margin-top: auto;
+        }
+
+        .keypad-btn {
+            background: #ffffff;
+            border: 1px solid #f0f0f0;
+            height: 64px;
+            font-size: 1.5rem;
+            font-weight: 500;
+            color: #202124;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            user-select: none;
+            transition: background-color 0.1s;
+        }
+
+        .keypad-btn:active {
+            background-color: #e8f0fe;
+        }
+
+        .keypad-btn-action {
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: #5f6368;
+        }
+
+        .keypad-btn-check {
+            background: #1a73e8;
+            color: white;
+            border-radius: 20px;
+            margin: 6px;
+            height: 52px;
+            font-size: 0.95rem;
+            font-weight: 600;
+        }
+
+        .keypad-btn-check:active {
+            background-color: #1557b0;
         }
 
         /* --- SCREEN 3: SUCCESS ANIMATION SCREEN --- */
@@ -571,7 +609,7 @@
             animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }
 
-        /* --- SCREEN 4: FAILED ANIMATION SCREEN (MATCHES IMAGE) --- */
+        /* --- SCREEN 4: PAYMENT FAILED SCREEN --- */
         .gpay-failed-screen {
             flex: 1;
             display: flex;
@@ -973,8 +1011,8 @@
             </div>
         </div>
 
-        <!-- STEP 2: ENTER 4-DIGIT UPI PIN SCREEN -->
-        <div id="gpay-step-2" style="display: none; flex-direction: column; height: 100%; position: relative;">
+        <!-- STEP 2: ENTER 4-DIGIT UPI PIN SCREEN WITH INBUILT KEYBOARD -->
+        <div id="gpay-step-2" style="display: none; flex-direction: column; height: 100%;">
             <div class="pin-screen-header">
                 <button id="pin-back-btn" class="icon-btn" style="color: #3c4043;"><span class="material-icons">arrow_back</span></button>
                 <span style="font-weight: 600; color: #3c4043;">UPI TRANSACTION</span>
@@ -982,7 +1020,7 @@
             </div>
 
             <div style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px;">
-                <h2 style="font-size: 1.3rem; color: #202124; font-weight: 500;">Enter 4-Digit UPI PIN</h2>
+                <h2 style="font-size: 1.3rem; color: #202124; font-weight: 500;">Enter UPI PIN</h2>
                 <p style="font-size: 0.85rem; color: #5f6368; margin-top: 4px;">Verify your transaction</p>
 
                 <!-- PIN Visual Dots -->
@@ -992,9 +1030,22 @@
                     <div class="pin-dot" id="dot-2"></div>
                     <div class="pin-dot" id="dot-3"></div>
                 </div>
+            </div>
 
-                <!-- Hidden Input to catch keypad -->
-                <input type="password" id="gpay-pin-input" maxlength="4" class="hidden-pin-input" autofocus autocomplete="off">
+            <!-- Custom Built-In Keypad (Matches Screen 2 of Reference) -->
+            <div class="inbuilt-keypad">
+                <button class="keypad-btn" onclick="pressKey('1')">1</button>
+                <button class="keypad-btn" onclick="pressKey('2')">2</button>
+                <button class="keypad-btn" onclick="pressKey('3')">3</button>
+                <button class="keypad-btn" onclick="pressKey('4')">4</button>
+                <button class="keypad-btn" onclick="pressKey('5')">5</button>
+                <button class="keypad-btn" onclick="pressKey('6')">6</button>
+                <button class="keypad-btn" onclick="pressKey('7')">7</button>
+                <button class="keypad-btn" onclick="pressKey('8')">8</button>
+                <button class="keypad-btn" onclick="pressKey('9')">9</button>
+                <button class="keypad-btn keypad-btn-action" onclick="pressKey('BACK')">Back</button>
+                <button class="keypad-btn" onclick="pressKey('0')">0</button>
+                <button class="keypad-btn keypad-btn-check" onclick="pressKey('CHECK')">Check</button>
             </div>
         </div>
 
@@ -1006,7 +1057,7 @@
             <h2 style="color: #202124; font-weight: 500;">Payment Successful</h2>
         </div>
 
-        <!-- STEP 4: PAYMENT FAILED SCREEN (EXACT MATCH FOR IMAGE) -->
+        <!-- STEP 4: PAYMENT FAILED SCREEN -->
         <div id="gpay-step-4" class="gpay-failed-screen" style="display: none;">
             <div class="gpay-failed-circle">
                 <span class="material-icons" style="font-size: 80px;">priority_high</span>
@@ -1037,19 +1088,21 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getDatabase, ref, get, update } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
-        // Firebase Configuration
+        // Updated Firebase Configuration
         const firebaseConfig = {
-            apiKey: "AIzaSyBCR5uvzEKrJbXi_SsCWM3JAGHdcdgHGLo",
-            authDomain: "automatic-ration-shop-f1a58.firebaseapp.com",
-            databaseURL: "https://automatic-ration-shop-f1a58-default-rtdb.asia-southeast1.firebasedatabase.app",
-            projectId: "automatic-ration-shop-f1a58",
-            storageBucket: "automatic-ration-shop-f1a58.firebasestorage.app",
-            messagingSenderId: "93161186464",
-            appId: "1:93161186464:web:63a15deb3300260471d5c5"
+            apiKey: "AIzaSyBRcy-3Rmatm8uN2eUfFUrKvPJ8nqbvWNs",
+            authDomain: "automatic-ration-shop-a934b.firebaseapp.com",
+            databaseURL: "https://automatic-ration-shop-a934b-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "automatic-ration-shop-a934b",
+            storageBucket: "automatic-ration-shop-a934b.firebasestorage.app",
+            messagingSenderId: "603540489454",
+            appId: "1:603540489454:web:c6336b05633c4a0fee1fff"
         };
 
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
+
+        let currentEnteredPin = "";
 
         function showView(viewId) {
             document.querySelectorAll('.view-container').forEach(el => el.classList.remove('active'));
@@ -1196,8 +1249,6 @@
         const step3 = document.getElementById("gpay-step-3");
         const step4 = document.getElementById("gpay-step-4");
 
-        const pinInput = document.getElementById("gpay-pin-input");
-
         payNowBtn.addEventListener("click", () => {
             const data = JSON.parse(sessionStorage.getItem("customerReceipt") || "{}");
             document.getElementById("popup-pay-amount").innerText = data.amount || 0;
@@ -1235,9 +1286,8 @@
         document.getElementById("gpay-proceed-btn").addEventListener("click", () => {
             step1.style.display = "none";
             step2.style.display = "flex";
-            pinInput.value = "";
+            currentEnteredPin = "";
             updatePinDots("");
-            pinInput.focus();
         });
 
         document.getElementById("pin-back-btn").addEventListener("click", () => {
@@ -1245,16 +1295,28 @@
             step1.style.display = "flex";
         });
 
-        // PIN Input typing handler
-        pinInput.addEventListener("input", (e) => {
-            const val = e.target.value;
-            updatePinDots(val);
-
-            // Check immediately on entering 4 digits
-            if (val.length === 4) {
-                verifyPinAndPay(val);
+        // In-App Numeric Keypad Handler
+        window.pressKey = function(key) {
+            if (key === "BACK") {
+                currentEnteredPin = currentEnteredPin.slice(0, -1);
+                updatePinDots(currentEnteredPin);
+            } else if (key === "CHECK") {
+                if (currentEnteredPin.length === 4) {
+                    verifyPinAndPay(currentEnteredPin);
+                } else {
+                    showError("Please enter a 4-digit PIN.");
+                }
+            } else {
+                if (currentEnteredPin.length < 4) {
+                    currentEnteredPin += key;
+                    updatePinDots(currentEnteredPin);
+                    if (currentEnteredPin.length === 4) {
+                        // Automatically process when 4th digit is pressed
+                        verifyPinAndPay(currentEnteredPin);
+                    }
+                }
             }
-        });
+        };
 
         function updatePinDots(val) {
             for (let i = 0; i < 4; i++) {
@@ -1273,7 +1335,7 @@
             const expectedPin = String(customerData.pin || "1234").trim();
 
             if (enteredPin === expectedPin) {
-                // SUCCESS: Proceed to success checkmark screen and update Firebase
+                // SUCCESS: Proceed to success screen and update Firebase
                 step2.style.display = "none";
                 step3.style.display = "flex";
 
