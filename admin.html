@@ -351,7 +351,7 @@
 
                 <div class="form-group">
                     <label>Ration Card No.</label>
-                    <input type="text" id="cust-ration" placeholder="e.g. RC1003">
+                    <input type="text" id="cust-ration" placeholder="Auto-calculating...">
                 </div>
 
                 <!-- DYNAMIC INFINITE MEMBERS SECTION -->
@@ -529,19 +529,65 @@
             onValue(rfidListenerRef, (snapshot) => {
                 const rawUid = snapshot.val();
                 if (rawUid && rawUid !== "None" && rawUid !== "") {
-                    // STOP listening immediately so screen STAYS on these details
                     stopRfidListener();
                     processScannedCard(rawUid);
                 }
             });
         }
 
-        // Stop Listening to allow user to work uninterrupted
         function stopRfidListener() {
             if (rfidListenerRef) {
                 off(rfidListenerRef);
                 rfidListenerRef = null;
             }
+        }
+
+        // Helper: Get Highest Existing Ration Card Number and Fingerprint ID across Firebase
+        async function getHighestExistingIDs() {
+            let maxRationNum = 1000;
+            let maxFpId = 0;
+
+            try {
+                const snapshot = await get(ref(db, 'cards'));
+                if (snapshot.exists()) {
+                    const cards = snapshot.val();
+                    Object.values(cards).forEach(card => {
+                        // Check Ration Card Number
+                        if (card.rationCardNo) {
+                            const num = parseInt(card.rationCardNo.replace(/\D/g, ''));
+                            if (!isNaN(num) && num > maxRationNum) maxRationNum = num;
+                        }
+
+                        // Check Member Fingerprint IDs
+                        const members = card.members || [];
+                        if (card.member1 && card.member1.fingerprintId) members.push(card.member1);
+                        if (card.member2 && card.member2.fingerprintId) members.push(card.member2);
+
+                        members.forEach(m => {
+                            const fp = parseInt(m.fingerprintId);
+                            if (!isNaN(fp) && fp > maxFpId) maxFpId = fp;
+                        });
+                    });
+                }
+            } catch (err) {
+                console.error("Error calculating next sequence IDs:", err);
+            }
+
+            return {
+                nextRationCardNo: `RC${maxRationNum + 1}`,
+                nextFpId: maxFpId + 1
+            };
+        }
+
+        // Helper: Calculate highest Fingerprint ID including UI input rows
+        function getNextAvailableFpId() {
+            let maxFpId = 0;
+            const rows = membersContainer.querySelectorAll(".member-fpid-input");
+            rows.forEach(input => {
+                const val = parseInt(input.value) || 0;
+                if (val > maxFpId) maxFpId = val;
+            });
+            return maxFpId > 0 ? maxFpId + 1 : 1;
         }
 
         // 4. Process Scanned Card UID & Fetch Details
@@ -557,6 +603,8 @@
 
             try {
                 const snapshot = await get(ref(db, `cards/${currentCardKey}`));
+                const { nextRationCardNo, nextFpId } = await getHighestExistingIDs();
+
                 if (snapshot.exists()) {
                     // Existing Card
                     const data = snapshot.val();
@@ -565,33 +613,38 @@
                     cardStatusBadge.innerText = "Existing Card Loaded";
                     cardStatusBadge.style.display = "inline-block";
 
-                    document.getElementById("cust-ration").value = data.rationCardNo || "";
+                    document.getElementById("cust-ration").value = data.rationCardNo || nextRationCardNo;
                     document.getElementById("cust-rice").value = data.rice || 0;
                     document.getElementById("cust-wheat").value = data.wheat || 0;
                     document.getElementById("cust-amount").value = data.amount || 0;
                     document.getElementById("cust-upi").value = data.upi || 1234;
 
                     // Load Existing Members
+                    let loadedAny = false;
                     if (data.members && Array.isArray(data.members)) {
-                        data.members.forEach(m => addMemberRow(m.name, m.fingerprintId));
+                        data.members.forEach(m => {
+                            addMemberRow(m.name, m.fingerprintId);
+                            loadedAny = true;
+                        });
                     } else {
-                        if (data.member1 && data.member1.name) addMemberRow(data.member1.name, data.member1.fingerprintId);
-                        if (data.member2 && data.member2.name) addMemberRow(data.member2.name, data.member2.fingerprintId);
+                        if (data.member1 && data.member1.name) { addMemberRow(data.member1.name, data.member1.fingerprintId); loadedAny = true; }
+                        if (data.member2 && data.member2.name) { addMemberRow(data.member2.name, data.member2.fingerprintId); loadedAny = true; }
                     }
 
-                    if (membersContainer.children.length === 0) {
-                        addMemberRow("", 1);
+                    if (!loadedAny) {
+                        addMemberRow("", nextFpId);
                     }
 
                 } else {
-                    // New Card
+                    // New Card -> Auto assign next Ration Card No & next FP ID
                     formTitle.innerText = "New Card Registration";
                     cardStatusBadge.className = "badge-status badge-new";
                     cardStatusBadge.innerText = "New Card Scanned";
                     cardStatusBadge.style.display = "inline-block";
 
                     resetFormFields();
-                    addMemberRow("", 1);
+                    document.getElementById("cust-ration").value = nextRationCardNo;
+                    addMemberRow("", nextFpId);
                 }
 
                 showView(formView);
@@ -609,11 +662,13 @@
             document.getElementById("cust-upi").value = "";
         }
 
-        // 5. Dynamic Infinite Member Row Creation
+        // 5. Dynamic Member Row Creation with Auto Fingerprint ID
         function addMemberRow(name = "", fpId = "") {
             memberCounter++;
             const currentIdx = memberCounter;
-            const autoFpId = fpId !== "" ? fpId : memberCounter;
+            
+            // Auto calculate next FP ID if not explicitly provided
+            const autoFpId = fpId !== "" ? fpId : getNextAvailableFpId();
 
             const box = document.createElement("div");
             box.className = "member-box";
@@ -637,8 +692,8 @@
                         <input type="text" class="member-name-input" value="${name}" placeholder="Full Name">
                     </div>
                     <div class="form-group">
-                        <label>Fingerprint ID</label>
-                        <input type="number" class="member-fpid-input" value="${autoFpId}" placeholder="${autoFpId}">
+                        <label>Fingerprint ID (Auto Generated)</label>
+                        <input type="number" class="member-fpid-input" value="${autoFpId}">
                     </div>
                 </div>
             `;
@@ -646,8 +701,10 @@
             membersContainer.appendChild(box);
         }
 
-        document.getElementById("add-member-btn").addEventListener("click", () => {
-            addMemberRow();
+        document.getElementById("add-member-btn").addEventListener("click", async () => {
+            const { nextFpId } = await getHighestExistingIDs();
+            const calcNext = Math.max(nextFpId, getNextAvailableFpId());
+            addMemberRow("", calcNext);
         });
 
         window.removeMemberRow = function(id) {
@@ -667,7 +724,7 @@
             const fpIdInput = parseInt(row.querySelector(".member-fpid-input").value) || 0;
 
             if (!nameInput || fpIdInput === 0) {
-                customerErr.innerText = "Please enter Name and Fingerprint ID first.";
+                customerErr.innerText = "Please enter Member Name first.";
                 customerErr.style.display = "block";
                 return;
             }
@@ -753,7 +810,7 @@
 
                 setTimeout(() => {
                     showView(scanWaitView);
-                    startRfidListener(); // Re-arm listener for next card scan
+                    startRfidListener();
                 }, 1500);
 
             } catch (err) {
@@ -771,7 +828,7 @@
                     await remove(ref(db, `cards/${currentCardKey}`));
                     await set(ref(db, 'system/scanned_card'), "None");
                     showView(scanWaitView);
-                    startRfidListener(); // Re-arm listener for next card scan
+                    startRfidListener();
                 } catch (err) {
                     customerErr.innerText = "Error deleting record.";
                     customerErr.style.display = "block";
