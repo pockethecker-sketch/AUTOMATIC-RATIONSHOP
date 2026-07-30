@@ -319,7 +319,7 @@
             </div>
         </div>
 
-        <!-- 2. SCAN WAITING & DASHBOARD -->
+        <!-- 2. SCAN WAITING VIEW -->
         <div id="scan-wait-view" class="view-section">
             <div class="card">
                 <h2>Awaiting RFID Card Scan</h2>
@@ -329,7 +329,7 @@
 
                 <div class="scan-indicator" style="padding: 24px;">
                     <div class="spinner"></div>
-                    <span>Listening to Firebase (`system/scanned_card`)...</span>
+                    <span>Listening for RFID Card Tap...</span>
                 </div>
             </div>
         </div>
@@ -398,7 +398,7 @@
                 </div>
 
                 <button id="save-card-btn" class="btn-primary">
-                    <span class="material-icons">save</span> Save All Details to Firebase
+                    <span class="material-icons">save</span> Save All Details & Done
                 </button>
 
                 <button id="delete-card-btn" class="btn-danger">
@@ -410,7 +410,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getDatabase, ref, get, set, update, remove, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+        import { getDatabase, ref, get, set, update, remove, onValue, off } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
         // Firebase Setup
         const firebaseConfig = {
@@ -446,6 +446,7 @@
 
         let currentCardKey = "";
         let memberCounter = 0;
+        let rfidListenerRef = null;
 
         function showView(view) {
             loginView.classList.remove("active");
@@ -460,6 +461,7 @@
                 logoutBtn.style.display = "flex";
                 startRfidListener();
             } else {
+                stopRfidListener();
                 showView(loginView);
                 logoutBtn.style.display = "none";
             }
@@ -521,17 +523,25 @@
             setLoginState(false);
         });
 
-        // 3. Real-Time ESP32 RFID Scanned Card Listener
+        // 3. Start Listening for RFID Scans
         function startRfidListener() {
-            const scannedCardRef = ref(db, 'system/scanned_card');
-            onValue(scannedCardRef, (snapshot) => {
+            rfidListenerRef = ref(db, 'system/scanned_card');
+            onValue(rfidListenerRef, (snapshot) => {
                 const rawUid = snapshot.val();
                 if (rawUid && rawUid !== "None" && rawUid !== "") {
+                    // STOP listening immediately so screen STAYS on these details
+                    stopRfidListener();
                     processScannedCard(rawUid);
-                } else {
-                    showView(scanWaitView);
                 }
             });
+        }
+
+        // Stop Listening to allow user to work uninterrupted
+        function stopRfidListener() {
+            if (rfidListenerRef) {
+                off(rfidListenerRef);
+                rfidListenerRef = null;
+            }
         }
 
         // 4. Process Scanned Card UID & Fetch Details
@@ -550,9 +560,9 @@
                 if (snapshot.exists()) {
                     // Existing Card
                     const data = snapshot.val();
-                    formTitle.innerText = "Existing Card Details (Editing)";
+                    formTitle.innerText = "Existing Card Details";
                     cardStatusBadge.className = "badge-status badge-existing";
-                    cardStatusBadge.innerText = "Existing Card Detected";
+                    cardStatusBadge.innerText = "Existing Card Loaded";
                     cardStatusBadge.style.display = "inline-block";
 
                     document.getElementById("cust-ration").value = data.rationCardNo || "";
@@ -561,17 +571,16 @@
                     document.getElementById("cust-amount").value = data.amount || 0;
                     document.getElementById("cust-upi").value = data.upi || 1234;
 
-                    // Load Members
+                    // Load Existing Members
                     if (data.members && Array.isArray(data.members)) {
                         data.members.forEach(m => addMemberRow(m.name, m.fingerprintId));
                     } else {
-                        // Fallback for legacy schema (member1/member2)
                         if (data.member1 && data.member1.name) addMemberRow(data.member1.name, data.member1.fingerprintId);
                         if (data.member2 && data.member2.name) addMemberRow(data.member2.name, data.member2.fingerprintId);
                     }
 
                     if (membersContainer.children.length === 0) {
-                        addMemberRow("", 1); // Add empty row if none
+                        addMemberRow("", 1);
                     }
 
                 } else {
@@ -658,13 +667,12 @@
             const fpIdInput = parseInt(row.querySelector(".member-fpid-input").value) || 0;
 
             if (!nameInput || fpIdInput === 0) {
-                customerErr.innerText = "Please provide Member Name and valid Fingerprint ID to enroll.";
+                customerErr.innerText = "Please enter Name and Fingerprint ID first.";
                 customerErr.style.display = "block";
                 return;
             }
 
             try {
-                // Send Enrollment Command to ESP32
                 await set(ref(db, 'system/fpCommand'), {
                     action: "ENROLL",
                     targetFingerId: fpIdInput,
@@ -677,7 +685,7 @@
                 listenForFpStatus(fpIdInput, nameInput);
 
             } catch (err) {
-                customerErr.innerText = "Failed to send enroll command to ESP32.";
+                customerErr.innerText = "Failed to trigger fingerprint enrollment.";
                 customerErr.style.display = "block";
             }
         };
@@ -696,16 +704,12 @@
             });
         }
 
-        // 7. Save Card & All Members to Firebase
+        // 7. Save Card Details & Reset Listener for Next Scan
         document.getElementById("save-card-btn").addEventListener("click", async () => {
             customerMsg.style.display = "none";
             customerErr.style.display = "none";
 
-            if (!currentCardKey) {
-                customerErr.innerText = "No active Card UID detected.";
-                customerErr.style.display = "block";
-                return;
-            }
+            if (!currentCardKey) return;
 
             const members = [];
             const rows = membersContainer.querySelectorAll(".member-box");
@@ -727,7 +731,6 @@
             const cardData = {
                 rationCardNo: document.getElementById("cust-ration").value.trim() || "RC1001",
                 members: members,
-                // Keep backwards compatibility for primary member
                 member1: members[0] || { name: "", fingerprintId: 0 },
                 member2: members[1] || { name: "", fingerprintId: 0 },
                 rice: parseFloat(document.getElementById("cust-rice").value) || 0,
@@ -743,24 +746,23 @@
             try {
                 await set(ref(db, `cards/${currentCardKey}`), cardData);
                 await set(ref(db, 'system/activeCardId'), currentCardKey);
-
-                // Reset scanned_card back to "None"
                 await set(ref(db, 'system/scanned_card'), "None");
 
-                customerMsg.innerText = "All details saved successfully! Resetting card scanner...";
+                customerMsg.innerText = "Saved successfully! Returning to scan screen...";
                 customerMsg.style.display = "block";
 
                 setTimeout(() => {
                     showView(scanWaitView);
-                }, 2000);
+                    startRfidListener(); // Re-arm listener for next card scan
+                }, 1500);
 
             } catch (err) {
-                customerErr.innerText = "Failed to save card data to Firebase.";
+                customerErr.innerText = "Failed to save card data.";
                 customerErr.style.display = "block";
             }
         });
 
-        // 8. Delete Card Record
+        // 8. Delete Card Record & Reset Listener
         document.getElementById("delete-card-btn").addEventListener("click", async () => {
             if (!currentCardKey) return;
 
@@ -769,8 +771,9 @@
                     await remove(ref(db, `cards/${currentCardKey}`));
                     await set(ref(db, 'system/scanned_card'), "None");
                     showView(scanWaitView);
+                    startRfidListener(); // Re-arm listener for next card scan
                 } catch (err) {
-                    customerErr.innerText = "Error deleting record from Firebase.";
+                    customerErr.innerText = "Error deleting record.";
                     customerErr.style.display = "block";
                 }
             }
