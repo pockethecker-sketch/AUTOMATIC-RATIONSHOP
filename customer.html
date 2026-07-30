@@ -336,10 +336,26 @@
             margin-top: 2px;
         }
 
-        .info-row {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 16px;
+        .members-list-box {
+            background: #fafafa;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .member-item-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.9rem;
+            padding: 4px 0;
+            border-bottom: 1px dashed #e0e0e0;
+        }
+
+        .member-item-row:last-child {
+            border-bottom: none;
         }
 
         .divider {
@@ -506,7 +522,7 @@
             box-shadow: 0 2px 6px rgba(26,115,232,0.3);
         }
 
-        /* --- SCREEN 2: PIN ENTRY VIEW WITH IN-APP KEYBOARD --- */
+        /* --- PIN ENTRY VIEW --- */
         .pin-screen-header {
             padding: 16px 20px;
             border-bottom: 1px solid #eee;
@@ -535,7 +551,6 @@
             border-color: #202124;
         }
 
-        /* Custom Keypad Grid matching UI design */
         .inbuilt-keypad {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
@@ -584,7 +599,7 @@
             background-color: #1557b0;
         }
 
-        /* --- SCREEN 3: SUCCESS ANIMATION SCREEN --- */
+        /* --- SUCCESS & FAILURE SCREENS --- */
         .gpay-success-screen {
             flex: 1;
             display: flex;
@@ -609,7 +624,6 @@
             animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }
 
-        /* --- SCREEN 4: PAYMENT FAILED SCREEN --- */
         .gpay-failed-screen {
             flex: 1;
             display: flex;
@@ -833,7 +847,7 @@
         <header class="app-bar">
             <div class="app-bar-brand">
                 <button id="back-home-btn" class="icon-btn"><span class="material-icons">arrow_back</span></button>
-                <h2>Beneficiary Details</h2>
+                <h2>Beneficiary Card Details</h2>
             </div>
         </header>
 
@@ -841,29 +855,20 @@
             <div class="details-card">
                 <div class="card-header-badge">
                     <span class="material-icons">badge</span>
-                    <span id="lbl-customer-id">ID: Loading...</span>
+                    <span id="lbl-ration-no">Ration Card: Loading...</span>
                 </div>
 
                 <div class="info-group">
-                    <label>Beneficiary Name</label>
-                    <p id="lbl-name">Loading...</p>
-                </div>
-
-                <div class="info-row">
-                    <div class="info-group">
-                        <label>Age</label>
-                        <p id="lbl-age">--</p>
-                    </div>
-                    <div class="info-group">
-                        <label>Phone Number</label>
-                        <p id="lbl-phone">--</p>
+                    <label>Registered Family Members</label>
+                    <div id="members-list-box" class="members-list-box">
+                        <!-- Dynamic list of members rendered here -->
                     </div>
                 </div>
 
                 <hr class="divider">
 
                 <div class="ration-allocation">
-                    <h4>Monthly Allocation</h4>
+                    <h4>Monthly Ration Allocation</h4>
                     <div class="allocation-item">
                         <span class="material-icons">rice_bowl</span>
                         <div>
@@ -883,7 +888,7 @@
                 <hr class="divider">
 
                 <div class="amount-section">
-                    <span>Total Payable Amount</span>
+                    <span>Total Amount Payable</span>
                     <h2 id="lbl-amount">₹0</h2>
                 </div>
 
@@ -923,7 +928,11 @@
 
                 <div class="receipt-summary">
                     <div class="receipt-row">
-                        <span>Beneficiary</span>
+                        <span>Ration Card No.</span>
+                        <strong id="rcpt-ration-no">--</strong>
+                    </div>
+                    <div class="receipt-row">
+                        <span>Primary Member</span>
                         <strong id="rcpt-name">--</strong>
                     </div>
                     <div class="receipt-row">
@@ -1011,7 +1020,7 @@
             </div>
         </div>
 
-        <!-- STEP 2: ENTER 4-DIGIT UPI PIN SCREEN WITH INBUILT KEYBOARD -->
+        <!-- STEP 2: ENTER 4-DIGIT UPI PIN SCREEN -->
         <div id="gpay-step-2" style="display: none; flex-direction: column; height: 100%;">
             <div class="pin-screen-header">
                 <button id="pin-back-btn" class="icon-btn" style="color: #3c4043;"><span class="material-icons">arrow_back</span></button>
@@ -1032,7 +1041,7 @@
                 </div>
             </div>
 
-            <!-- Custom Built-In Keypad (Matches Screen 2 of Reference) -->
+            <!-- Custom Built-In Keypad -->
             <div class="inbuilt-keypad">
                 <button class="keypad-btn" onclick="pressKey('1')">1</button>
                 <button class="keypad-btn" onclick="pressKey('2')">2</button>
@@ -1172,14 +1181,15 @@
             loadingOverlay.style.display = "flex";
 
             try {
-                const snapshot = await get(ref(db, 'system/currentCustomer'));
-                if (snapshot.exists()) {
-                    const customerId = snapshot.val();
-                    sessionStorage.setItem("activeCustomerId", customerId);
-                    await loadCustomerDetails(customerId);
+                // Fetch current active card key set by hardware scan
+                const snapshot = await get(ref(db, 'system/activeCardId'));
+                if (snapshot.exists() && snapshot.val() && snapshot.val() !== "None") {
+                    const cardKey = snapshot.val();
+                    sessionStorage.setItem("activeCardKey", cardKey);
+                    await loadCardDetails(cardKey);
                 } else {
                     loadingOverlay.style.display = "none";
-                    showError("No active customer found.");
+                    showError("No active card session found. Please tap RFID card first.");
                 }
             } catch (error) {
                 loadingOverlay.style.display = "none";
@@ -1193,17 +1203,36 @@
         }
         closeErrorBtn.addEventListener("click", () => errorModal.style.display = "none");
 
-        async function loadCustomerDetails(customerId) {
+        async function loadCardDetails(cardKey) {
             try {
-                const snapshot = await get(ref(db, `customers/${customerId}`));
+                const snapshot = await get(ref(db, `cards/${cardKey}`));
                 loadingOverlay.style.display = "none";
 
                 if (snapshot.exists()) {
                     const data = snapshot.val();
-                    document.getElementById("lbl-customer-id").innerText = `ID: ${data.customerId || customerId}`;
-                    document.getElementById("lbl-name").innerText = data.name || "N/A";
-                    document.getElementById("lbl-age").innerText = data.age || "--";
-                    document.getElementById("lbl-phone").innerText = data.phone || "--";
+                    document.getElementById("lbl-ration-no").innerText = `Ration Card: ${data.rationCardNo || 'N/A'}`;
+                    
+                    // Render dynamically stored members
+                    const membersContainer = document.getElementById("members-list-box");
+                    membersContainer.innerHTML = "";
+                    
+                    const memberList = data.members || [];
+                    if (memberList.length === 0) {
+                        if (data.member1 && data.member1.name) memberList.push(data.member1);
+                        if (data.member2 && data.member2.name) memberList.push(data.member2);
+                    }
+
+                    if (memberList.length > 0) {
+                        memberList.forEach((m, idx) => {
+                            const item = document.createElement("div");
+                            item.className = "member-item-row";
+                            item.innerHTML = `<span><strong>Member ${idx + 1}:</strong> ${m.name}</span><span>FP ID: ${m.fingerprintId}</span>`;
+                            membersContainer.appendChild(item);
+                        });
+                    } else {
+                        membersContainer.innerHTML = "<p style='font-size:0.85rem; color:#888;'>No family members listed.</p>";
+                    }
+
                     document.getElementById("lbl-rice").innerText = `${data.rice || 0} kg`;
                     document.getElementById("lbl-wheat").innerText = `${data.wheat || 0} kg`;
                     document.getElementById("lbl-amount").innerText = `₹${data.amount || 0}`;
@@ -1227,12 +1256,12 @@
 
                     showView('details-view');
                 } else {
-                    showError("Customer record missing.");
+                    showError("Ration Card record missing.");
                     showView('home-view');
                 }
             } catch (e) {
                 loadingOverlay.style.display = "none";
-                showError("Failed to fetch customer profile.");
+                showError("Failed to fetch card profile.");
                 showView('home-view');
             }
         }
@@ -1311,7 +1340,6 @@
                     currentEnteredPin += key;
                     updatePinDots(currentEnteredPin);
                     if (currentEnteredPin.length === 4) {
-                        // Automatically process when 4th digit is pressed
                         verifyPinAndPay(currentEnteredPin);
                     }
                 }
@@ -1329,22 +1357,22 @@
             }
         }
 
-        // Single-attempt PIN check logic
+        // Single-attempt PIN check logic matching database field 'upi'
         async function verifyPinAndPay(enteredPin) {
             const customerData = JSON.parse(sessionStorage.getItem("customerReceipt") || "{}");
-            const expectedPin = String(customerData.pin || "1234").trim();
+            const expectedPin = String(customerData.upi || "1234").trim();
 
             if (enteredPin === expectedPin) {
                 // SUCCESS: Proceed to success screen and update Firebase
                 step2.style.display = "none";
                 step3.style.display = "flex";
 
-                const customerId = sessionStorage.getItem("activeCustomerId");
+                const activeCardKey = sessionStorage.getItem("activeCardKey");
                 const timestamp = new Date().toISOString();
 
                 setTimeout(async () => {
                     try {
-                        await update(ref(db, `customers/${customerId}`), {
+                        await update(ref(db, `cards/${activeCardKey}`), {
                             paid: true,
                             paymentTime: timestamp
                         });
@@ -1377,7 +1405,10 @@
 
         function populateSuccessScreen() {
             const data = JSON.parse(sessionStorage.getItem("customerReceipt") || "{}");
-            document.getElementById("rcpt-name").innerText = data.name || "--";
+            const primaryMember = (data.members && data.members[0]) ? data.members[0].name : (data.member1 ? data.member1.name : "--");
+            
+            document.getElementById("rcpt-ration-no").innerText = data.rationCardNo || "--";
+            document.getElementById("rcpt-name").innerText = primaryMember;
             document.getElementById("rcpt-rice").innerText = `${data.rice || 0} kg`;
             document.getElementById("rcpt-wheat").innerText = `${data.wheat || 0} kg`;
             document.getElementById("rcpt-amount").innerText = `₹${data.amount || 0}`;
