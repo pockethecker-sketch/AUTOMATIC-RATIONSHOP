@@ -54,7 +54,7 @@
         .main-container {
             flex: 1;
             padding: 20px;
-            max-width: 580px;
+            max-width: 620px;
             width: 100%;
             margin: 0 auto;
             display: flex;
@@ -197,14 +197,14 @@
             border: none;
             padding: 14px;
             border-radius: 8px;
-            font-size: 1rem;
+            font-size: 0.95rem;
             font-weight: 600;
             cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
             gap: 8px;
-            margin-top: 8px;
+            margin-top: 4px;
         }
 
         .btn-secondary {
@@ -221,6 +221,21 @@
             gap: 4px;
             margin-bottom: 10px;
             align-self: flex-start;
+        }
+
+        .btn-danger {
+            background-color: var(--accent-red);
+            color: white;
+            border: none;
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
         }
 
         .btn-logout {
@@ -377,7 +392,7 @@
                         </div>
                         <div class="form-group">
                             <label>Fingerprint ID</label>
-                            <input type="number" id="m2-fpid" placeholder="0 or leave empty">
+                            <input type="number" id="m2-fpid" placeholder="2">
                         </div>
                     </div>
                 </div>
@@ -415,7 +430,15 @@
                 </div>
 
                 <button id="save-card-btn" class="btn-primary">
-                    <span class="material-icons">save</span> Save & Sync Fingerprint to ESP32
+                    <span class="material-icons">save</span> Save & Sync Member 1 Fingerprint
+                </button>
+
+                <button id="enroll-m2-btn" class="btn-primary" style="background-color: var(--accent-green);">
+                    <span class="material-icons">fingerprint</span> Enroll Member 2 Fingerprint
+                </button>
+
+                <button id="delete-card-btn" class="btn-danger">
+                    <span class="material-icons">delete</span> Delete Card Record
                 </button>
             </div>
         </div>
@@ -423,7 +446,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getDatabase, ref, get, set, update, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+        import { getDatabase, ref, get, set, update, remove, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
         // Firebase Setup
         const firebaseConfig = {
@@ -599,6 +622,13 @@
             }
         });
 
+        document.getElementById("m1-fpid").addEventListener("input", (e) => {
+            const val = parseInt(e.target.value);
+            if (val > 0 && !document.getElementById("m2-fpid").value) {
+                document.getElementById("m2-fpid").value = val + 1;
+            }
+        });
+
         function resetFormFieldsExceptUid() {
             document.getElementById("cust-ration").value = "";
             document.getElementById("m1-name").value = "";
@@ -616,10 +646,11 @@
             cardStatusBadge.style.display = "none";
             customerMsg.style.display = "none";
             customerErr.style.display = "none";
+            fpWaitBox.style.display = "none";
             resetFormFieldsExceptUid();
         }
 
-        // 6. Save Card & Send Enroll Command to ESP32
+        // 6. Save Card & Send Enroll Command for Member 1 to ESP32
         document.getElementById("save-card-btn").addEventListener("click", async () => {
             customerMsg.style.display = "none";
             customerErr.style.display = "none";
@@ -659,7 +690,7 @@
                 await set(ref(db, `cards/${cardKey}`), cardData);
                 await set(ref(db, 'system/activeCardId'), cardKey);
 
-                // Send Enrollment Command to ESP32 Hardware
+                // Send Enrollment Command for Member 1 to ESP32
                 await set(ref(db, 'system/fpCommand'), {
                     action: "ENROLL",
                     targetFingerId: m1FpId,
@@ -669,22 +700,95 @@
                 fpWaitBox.style.display = "flex";
                 fpStatusMsg.innerText = `Place finger for ${m1Name} (ID: ${m1FpId}) on ESP32 sensor...`;
 
-                // Real-time Enrollment Progress Listener
-                const fpStatusRef = ref(db, 'system/fpStatus');
-                onValue(fpStatusRef, (snapshot) => {
-                    const status = snapshot.val();
-                    if (status && status.state === "SUCCESS") {
-                        fpWaitBox.style.display = "none";
-                        customerMsg.innerText = `Card saved & Fingerprint ${m1FpId} registered for ${m1Name}!`;
-                        customerMsg.style.display = "block";
-                    } else if (status && status.state === "ERROR") {
-                        fpStatusMsg.innerText = "Fingerprint enrollment failed on ESP32. Try scanning again.";
-                    }
-                });
+                listenForFpStatus(m1FpId, m1Name);
 
             } catch (err) {
                 customerErr.innerText = "Failed to sync with Firebase.";
                 customerErr.style.display = "block";
+            }
+        });
+
+        // 7. Enroll Member 2 Fingerprint Command
+        document.getElementById("enroll-m2-btn").addEventListener("click", async () => {
+            customerMsg.style.display = "none";
+            customerErr.style.display = "none";
+
+            const rawUid = cardUidInput.value.replace(/\s+/g, '').toUpperCase();
+            const m2Name = document.getElementById("m2-name").value.trim();
+            const m2FpId = parseInt(document.getElementById("m2-fpid").value) || 0;
+
+            if (!rawUid) {
+                customerErr.innerText = "Please select or scan a valid card first.";
+                customerErr.style.display = "block";
+                return;
+            }
+
+            if (!m2Name || m2FpId === 0) {
+                customerErr.innerText = "Member 2 Name and Fingerprint ID are required for enrollment.";
+                customerErr.style.display = "block";
+                return;
+            }
+
+            const cardKey = rawUid.startsWith("RFID_") ? rawUid : `RFID_${rawUid}`;
+
+            try {
+                await update(ref(db, `cards/${cardKey}/member2`), {
+                    name: m2Name,
+                    fingerprintId: m2FpId
+                });
+
+                await set(ref(db, 'system/fpCommand'), {
+                    action: "ENROLL",
+                    targetFingerId: m2FpId,
+                    cardId: cardKey
+                });
+
+                fpWaitBox.style.display = "flex";
+                fpStatusMsg.innerText = `Place finger for Member 2 (${m2Name}, ID: ${m2FpId}) on ESP32 sensor...`;
+
+                listenForFpStatus(m2FpId, m2Name);
+
+            } catch (err) {
+                customerErr.innerText = "Failed to trigger Member 2 enrollment.";
+                customerErr.style.display = "block";
+            }
+        });
+
+        // Helper for Fingerprint Status Listener
+        function listenForFpStatus(fpId, name) {
+            const fpStatusRef = ref(db, 'system/fpStatus');
+            onValue(fpStatusRef, (snapshot) => {
+                const status = snapshot.val();
+                if (status && status.state === "SUCCESS") {
+                    fpWaitBox.style.display = "none";
+                    customerMsg.innerText = `Card updated & Fingerprint ID ${fpId} registered for ${name}!`;
+                    customerMsg.style.display = "block";
+                } else if (status && status.state === "ERROR") {
+                    fpStatusMsg.innerText = "Fingerprint enrollment failed on ESP32. Try scanning again.";
+                }
+            });
+        }
+
+        // 8. Delete Card Action
+        document.getElementById("delete-card-btn").addEventListener("click", async () => {
+            const rawUid = cardUidInput.value.replace(/\s+/g, '').toUpperCase();
+            if (!rawUid) {
+                customerErr.innerText = "Please select a card to delete.";
+                customerErr.style.display = "block";
+                return;
+            }
+
+            const cardKey = rawUid.startsWith("RFID_") ? rawUid : `RFID_${rawUid}`;
+            if (confirm(`Are you sure you want to delete ${cardKey}?`)) {
+                try {
+                    await remove(ref(db, `cards/${cardKey}`));
+                    customerMsg.innerText = "Card deleted successfully!";
+                    customerMsg.style.display = "block";
+                    resetForm();
+                } catch (err) {
+                    customerErr.innerText = "Error deleting card from database.";
+                    customerErr.style.display = "block";
+                }
             }
         });
     </script>
