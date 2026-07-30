@@ -54,7 +54,7 @@
         .main-container {
             flex: 1;
             padding: 20px;
-            max-width: 620px;
+            max-width: 680px;
             width: 100%;
             margin: 0 auto;
             display: flex;
@@ -81,9 +81,9 @@
 
         .badge-status {
             display: inline-block;
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-size: 0.8rem;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 0.85rem;
             font-weight: bold;
             text-align: center;
         }
@@ -91,49 +91,12 @@
         .badge-new { background-color: #e3f2fd; color: #0d47a1; }
         .badge-existing { background-color: #e8f5e9; color: #1b5e20; }
 
-        .choice-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 16px;
-            margin-top: 10px;
-        }
-
-        .choice-card {
-            background: #f8f9fa;
-            border: 2px solid #e0e0e0;
-            border-radius: 10px;
-            padding: 24px 16px;
-            text-align: center;
-            cursor: pointer;
-            transition: all 0.2s ease-in-out;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .choice-card:hover {
-            border-color: var(--primary-light);
-            background: #e3f2fd;
-            transform: translateY(-2px);
-        }
-
-        .choice-card span.material-icons {
-            font-size: 2.5rem;
-            color: var(--primary-light);
-        }
-
-        .choice-card h3 {
-            font-size: 1.05rem;
-            color: var(--text-main);
-        }
-
         .scan-indicator {
             background-color: #e8eaf6;
             border: 1px dashed var(--primary-light);
-            padding: 10px;
+            padding: 12px;
             border-radius: 8px;
-            font-size: 0.85rem;
+            font-size: 0.9rem;
             color: var(--primary-blue);
             display: flex;
             align-items: center;
@@ -173,17 +136,30 @@
             gap: 12px;
         }
 
+        .member-container {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
         .member-box {
             background: #fafafa;
             border: 1px solid #e0e0e0;
             border-radius: 8px;
-            padding: 12px;
+            padding: 14px;
             display: flex;
             flex-direction: column;
             gap: 10px;
+            position: relative;
         }
 
-        .member-box h4 {
+        .member-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .member-header h4 {
             color: var(--primary-light);
             font-size: 0.95rem;
             display: flex;
@@ -204,23 +180,54 @@
             align-items: center;
             justify-content: center;
             gap: 8px;
-            margin-top: 4px;
         }
 
-        .btn-secondary {
-            background-color: #757575;
+        .btn-add-member {
+            background-color: #f0f4f8;
+            color: var(--primary-blue);
+            border: 2px dashed var(--primary-light);
+            padding: 10px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            transition: background 0.2s;
+        }
+
+        .btn-add-member:hover {
+            background-color: #e3f2fd;
+        }
+
+        .btn-enroll-sm {
+            background-color: var(--accent-green);
             color: white;
             border: none;
-            padding: 8px 12px;
+            padding: 6px 10px;
             border-radius: 6px;
-            font-size: 0.85rem;
+            font-size: 0.78rem;
             font-weight: 600;
             cursor: pointer;
             display: flex;
             align-items: center;
             gap: 4px;
-            margin-bottom: 10px;
-            align-self: flex-start;
+        }
+
+        .btn-remove-sm {
+            background-color: #ffebee;
+            color: var(--accent-red);
+            border: 1px solid #ffcdd2;
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 2px;
         }
 
         .btn-danger {
@@ -312,89 +319,50 @@
             </div>
         </div>
 
-        <!-- 2. OPERATION SELECTION -->
-        <div id="selection-view" class="view-section">
+        <!-- 2. SCAN WAITING & DASHBOARD -->
+        <div id="scan-wait-view" class="view-section">
             <div class="card">
-                <h2>Select Operation</h2>
-                <p style="text-align: center; color: var(--text-muted); font-size: 0.9rem;">Choose operation or tap an RFID card on the ESP32 sensor.</p>
-                
-                <div class="choice-grid">
-                    <div class="choice-card" id="choose-existing-btn">
-                        <span class="material-icons">credit_card</span>
-                        <h3>Existing Card</h3>
-                        <p style="font-size: 0.75rem; color: var(--text-muted);">View / Add Member 2</p>
-                    </div>
-                    <div class="choice-card" id="choose-new-btn">
-                        <span class="material-icons">add_card</span>
-                        <h3>New Card</h3>
-                        <p style="font-size: 0.75rem; color: var(--text-muted);">Register First Member & Ration</p>
-                    </div>
-                </div>
+                <h2>Awaiting RFID Card Scan</h2>
+                <p style="text-align: center; color: var(--text-muted); font-size: 0.9rem;">
+                    Please tap an RFID card on the ESP32 reader to continue.
+                </p>
 
-                <div class="scan-indicator">
-                    <span class="material-icons">sensors</span>
-                    <span>Listening for RC522 RFID Card Tap...</span>
+                <div class="scan-indicator" style="padding: 24px;">
+                    <div class="spinner"></div>
+                    <span>Listening to Firebase (`system/scanned_card`)...</span>
                 </div>
             </div>
         </div>
 
-        <!-- 3. DETAILS FORM -->
+        <!-- 3. CARD DETAILS & INFINITE MEMBERS FORM -->
         <div id="form-view" class="view-section">
-            <button id="back-to-selection-btn" class="btn-secondary">
-                <span class="material-icons">arrow_back</span> Back
-            </button>
-
             <div class="card">
-                <h2 id="form-title">Card Registration</h2>
+                <h2 id="form-title">Card Management</h2>
                 <p id="customer-msg" class="success-text">Saved successfully!</p>
                 <p id="customer-err" class="error-text">Operation failed.</p>
 
-                <div class="scan-indicator">
-                    <span class="material-icons">sensors</span>
-                    <span>Tap card on RC522 to auto-fill UID</span>
-                </div>
+                <div id="card-status-badge" style="display: none; align-self: center;"></div>
 
                 <!-- CARD UID -->
                 <div class="form-group">
                     <label>Card UID</label>
-                    <input type="text" id="cust-uid" placeholder="Tap card on ESP32 or enter UID...">
+                    <input type="text" id="cust-uid" readonly style="background-color: #f0f0f0; font-weight: bold;">
                 </div>
-
-                <div id="card-status-badge" style="display: none; align-self: flex-start;"></div>
 
                 <div class="form-group">
                     <label>Ration Card No.</label>
                     <input type="text" id="cust-ration" placeholder="e.g. RC1003">
                 </div>
 
-                <!-- MEMBER 1 -->
-                <div class="member-box">
-                    <h4><span class="material-icons">person</span> Member 1 (Primary)</h4>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label>Name</label>
-                            <input type="text" id="m1-name" placeholder="Member 1 Name">
-                        </div>
-                        <div class="form-group">
-                            <label>Fingerprint ID</label>
-                            <input type="number" id="m1-fpid" placeholder="1">
-                        </div>
+                <!-- DYNAMIC INFINITE MEMBERS SECTION -->
+                <div class="form-group">
+                    <label style="font-size: 0.95rem; color: var(--primary-blue);">Family Members</label>
+                    <div id="members-container" class="member-container">
+                        <!-- Dynamic member rows inserted here -->
                     </div>
-                </div>
-
-                <!-- MEMBER 2 (OPTIONAL) -->
-                <div class="member-box">
-                    <h4><span class="material-icons">person_outline</span> Member 2 (Optional)</h4>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label>Name</label>
-                            <input type="text" id="m2-name" placeholder="Optional">
-                        </div>
-                        <div class="form-group">
-                            <label>Fingerprint ID</label>
-                            <input type="number" id="m2-fpid" placeholder="2">
-                        </div>
-                    </div>
+                    <button type="button" id="add-member-btn" class="btn-add-member">
+                        <span class="material-icons">person_add</span> Add Family Member
+                    </button>
                 </div>
 
                 <!-- RATION ALLOCATIONS & PAYMENTS -->
@@ -430,15 +398,11 @@
                 </div>
 
                 <button id="save-card-btn" class="btn-primary">
-                    <span class="material-icons">save</span> Save & Sync Member 1 Fingerprint
-                </button>
-
-                <button id="enroll-m2-btn" class="btn-primary" style="background-color: var(--accent-green);">
-                    <span class="material-icons">fingerprint</span> Enroll Member 2 Fingerprint
+                    <span class="material-icons">save</span> Save All Details to Firebase
                 </button>
 
                 <button id="delete-card-btn" class="btn-danger">
-                    <span class="material-icons">delete</span> Delete Card Record
+                    <span class="material-icons">delete</span> Delete Entire Card Record
                 </button>
             </div>
         </div>
@@ -464,7 +428,7 @@
 
         // UI Views
         const loginView = document.getElementById("login-view");
-        const selectionView = document.getElementById("selection-view");
+        const scanWaitView = document.getElementById("scan-wait-view");
         const formView = document.getElementById("form-view");
 
         // Controls
@@ -476,19 +440,23 @@
 
         const cardUidInput = document.getElementById("cust-uid");
         const cardStatusBadge = document.getElementById("card-status-badge");
+        const membersContainer = document.getElementById("members-container");
         const fpWaitBox = document.getElementById("fp-wait-box");
         const fpStatusMsg = document.getElementById("fp-status-msg");
 
+        let currentCardKey = "";
+        let memberCounter = 0;
+
         function showView(view) {
             loginView.classList.remove("active");
-            selectionView.classList.remove("active");
+            scanWaitView.classList.remove("active");
             formView.classList.remove("active");
             view.classList.add("active");
         }
 
         function setLoginState(isLoggedIn) {
             if (isLoggedIn) {
-                showView(selectionView);
+                showView(scanWaitView);
                 logoutBtn.style.display = "flex";
                 startRfidListener();
             } else {
@@ -548,220 +516,179 @@
             }
         });
 
-        // 3. Navigation Controls
-        document.getElementById("choose-existing-btn").addEventListener("click", () => {
-            formTitle.innerText = "Existing Card - View / Update";
-            resetForm();
-            showView(formView);
-        });
-
-        document.getElementById("choose-new-btn").addEventListener("click", () => {
-            formTitle.innerText = "New Card Registration";
-            resetForm();
-            showView(formView);
-        });
-
-        document.getElementById("back-to-selection-btn").addEventListener("click", () => {
-            showView(selectionView);
-        });
-
         logoutBtn.addEventListener("click", async () => {
             try { await update(ref(db, 'admin'), { login: false }); } catch (e) {}
             setLoginState(false);
         });
 
-        // 4. Real-Time ESP32 RFID Tap Listener
+        // 3. Real-Time ESP32 RFID Scanned Card Listener
         function startRfidListener() {
-            const scannedCardRef = ref(db, 'system/lastScannedCard');
+            const scannedCardRef = ref(db, 'system/scanned_card');
             onValue(scannedCardRef, (snapshot) => {
-                const uid = snapshot.val();
-                if (uid && uid.length >= 4) {
-                    cardUidInput.value = uid;
-                    showView(formView);
-                    lookupCardDetails(uid);
+                const rawUid = snapshot.val();
+                if (rawUid && rawUid !== "None" && rawUid !== "") {
+                    processScannedCard(rawUid);
+                } else {
+                    showView(scanWaitView);
                 }
             });
         }
 
-        // 5. Look up existing data for UID
-        async function lookupCardDetails(rawUid) {
+        // 4. Process Scanned Card UID & Fetch Details
+        async function processScannedCard(rawUid) {
             const cleanUid = rawUid.replace(/\s+/g, '').toUpperCase();
-            const formattedKey = cleanUid.startsWith("RFID_") ? cleanUid : `RFID_${cleanUid}`;
+            currentCardKey = cleanUid.startsWith("RFID_") ? cleanUid : `RFID_${cleanUid}`;
+            cardUidInput.value = currentCardKey;
+
+            membersContainer.innerHTML = "";
+            memberCounter = 0;
+            customerMsg.style.display = "none";
+            customerErr.style.display = "none";
 
             try {
-                const snapshot = await get(ref(db, `cards/${formattedKey}`));
+                const snapshot = await get(ref(db, `cards/${currentCardKey}`));
                 if (snapshot.exists()) {
+                    // Existing Card
                     const data = snapshot.val();
+                    formTitle.innerText = "Existing Card Details (Editing)";
                     cardStatusBadge.className = "badge-status badge-existing";
-                    cardStatusBadge.innerText = "Existing Card Loaded";
+                    cardStatusBadge.innerText = "Existing Card Detected";
                     cardStatusBadge.style.display = "inline-block";
 
                     document.getElementById("cust-ration").value = data.rationCardNo || "";
-                    document.getElementById("m1-name").value = data.member1?.name || "";
-                    document.getElementById("m1-fpid").value = data.member1?.fingerprintId || "";
-                    document.getElementById("m2-name").value = data.member2?.name || "";
-                    document.getElementById("m2-fpid").value = data.member2?.fingerprintId || "";
                     document.getElementById("cust-rice").value = data.rice || 0;
                     document.getElementById("cust-wheat").value = data.wheat || 0;
                     document.getElementById("cust-amount").value = data.amount || 0;
                     document.getElementById("cust-upi").value = data.upi || 1234;
+
+                    // Load Members
+                    if (data.members && Array.isArray(data.members)) {
+                        data.members.forEach(m => addMemberRow(m.name, m.fingerprintId));
+                    } else {
+                        // Fallback for legacy schema (member1/member2)
+                        if (data.member1 && data.member1.name) addMemberRow(data.member1.name, data.member1.fingerprintId);
+                        if (data.member2 && data.member2.name) addMemberRow(data.member2.name, data.member2.fingerprintId);
+                    }
+
+                    if (membersContainer.children.length === 0) {
+                        addMemberRow("", 1); // Add empty row if none
+                    }
+
                 } else {
+                    // New Card
+                    formTitle.innerText = "New Card Registration";
                     cardStatusBadge.className = "badge-status badge-new";
-                    cardStatusBadge.innerText = "New Card Detected";
+                    cardStatusBadge.innerText = "New Card Scanned";
                     cardStatusBadge.style.display = "inline-block";
-                    resetFormFieldsExceptUid();
+
+                    resetFormFields();
+                    addMemberRow("", 1);
                 }
+
+                showView(formView);
+
             } catch (err) {
-                console.error("Error fetching card data:", err);
+                console.error("Error fetching card details:", err);
             }
         }
 
-        cardUidInput.addEventListener("input", () => {
-            if (cardUidInput.value.trim().length >= 4) {
-                lookupCardDetails(cardUidInput.value);
-            }
-        });
-
-        document.getElementById("m1-fpid").addEventListener("input", (e) => {
-            const val = parseInt(e.target.value);
-            if (val > 0 && !document.getElementById("m2-fpid").value) {
-                document.getElementById("m2-fpid").value = val + 1;
-            }
-        });
-
-        function resetFormFieldsExceptUid() {
+        function resetFormFields() {
             document.getElementById("cust-ration").value = "";
-            document.getElementById("m1-name").value = "";
-            document.getElementById("m1-fpid").value = "";
-            document.getElementById("m2-name").value = "";
-            document.getElementById("m2-fpid").value = "";
             document.getElementById("cust-rice").value = "";
             document.getElementById("cust-wheat").value = "";
             document.getElementById("cust-amount").value = "";
             document.getElementById("cust-upi").value = "";
         }
 
-        function resetForm() {
-            cardUidInput.value = "";
-            cardStatusBadge.style.display = "none";
-            customerMsg.style.display = "none";
-            customerErr.style.display = "none";
-            fpWaitBox.style.display = "none";
-            resetFormFieldsExceptUid();
+        // 5. Dynamic Infinite Member Row Creation
+        function addMemberRow(name = "", fpId = "") {
+            memberCounter++;
+            const currentIdx = memberCounter;
+            const autoFpId = fpId !== "" ? fpId : memberCounter;
+
+            const box = document.createElement("div");
+            box.className = "member-box";
+            box.id = `member-row-${currentIdx}`;
+
+            box.innerHTML = `
+                <div class="member-header">
+                    <h4><span class="material-icons">person</span> Member ${currentIdx}</h4>
+                    <div style="display: flex; gap: 6px;">
+                        <button type="button" class="btn-enroll-sm" onclick="enrollSingleFingerprint(${currentIdx})">
+                            <span class="material-icons" style="font-size:1rem;">fingerprint</span> Enroll FP
+                        </button>
+                        <button type="button" class="btn-remove-sm" onclick="removeMemberRow(${currentIdx})">
+                            <span class="material-icons" style="font-size:1rem;">delete</span>
+                        </button>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Member Name</label>
+                        <input type="text" class="member-name-input" value="${name}" placeholder="Full Name">
+                    </div>
+                    <div class="form-group">
+                        <label>Fingerprint ID</label>
+                        <input type="number" class="member-fpid-input" value="${autoFpId}" placeholder="${autoFpId}">
+                    </div>
+                </div>
+            `;
+
+            membersContainer.appendChild(box);
         }
 
-        // 6. Save Card & Send Enroll Command for Member 1 to ESP32
-        document.getElementById("save-card-btn").addEventListener("click", async () => {
+        document.getElementById("add-member-btn").addEventListener("click", () => {
+            addMemberRow();
+        });
+
+        window.removeMemberRow = function(id) {
+            const row = document.getElementById(`member-row-${id}`);
+            if (row) row.remove();
+        };
+
+        // 6. Enroll Single Fingerprint Command
+        window.enrollSingleFingerprint = async function(rowId) {
             customerMsg.style.display = "none";
             customerErr.style.display = "none";
 
-            const rawUid = cardUidInput.value.replace(/\s+/g, '').toUpperCase();
-            if (!rawUid) {
-                customerErr.innerText = "Please scan or enter a Card UID.";
+            const row = document.getElementById(`member-row-${rowId}`);
+            if (!row) return;
+
+            const nameInput = row.querySelector(".member-name-input").value.trim();
+            const fpIdInput = parseInt(row.querySelector(".member-fpid-input").value) || 0;
+
+            if (!nameInput || fpIdInput === 0) {
+                customerErr.innerText = "Please provide Member Name and valid Fingerprint ID to enroll.";
                 customerErr.style.display = "block";
                 return;
             }
-
-            const m1Name = document.getElementById("m1-name").value.trim();
-            const m1FpId = parseInt(document.getElementById("m1-fpid").value) || 0;
-
-            if (!m1Name || m1FpId === 0) {
-                customerErr.innerText = "Member 1 Name and Fingerprint ID are required.";
-                customerErr.style.display = "block";
-                return;
-            }
-
-            const cardKey = rawUid.startsWith("RFID_") ? rawUid : `RFID_${rawUid}`;
-            const m2Name = document.getElementById("m2-name").value.trim();
-            const m2FpId = parseInt(document.getElementById("m2-fpid").value) || 0;
-
-            const cardData = {
-                rationCardNo: document.getElementById("cust-ration").value.trim() || "RC1001",
-                member1: { name: m1Name, fingerprintId: m1FpId },
-                member2: { name: m2Name, fingerprintId: m2FpId },
-                rice: parseFloat(document.getElementById("cust-rice").value) || 0,
-                wheat: parseFloat(document.getElementById("cust-wheat").value) || 0,
-                amount: parseFloat(document.getElementById("cust-amount").value) || 0,
-                upi: parseInt(document.getElementById("cust-upi").value) || 1234,
-                paid: false, collected: false, collectedBy: "", collectionTime: ""
-            };
 
             try {
-                await set(ref(db, `cards/${cardKey}`), cardData);
-                await set(ref(db, 'system/activeCardId'), cardKey);
-
-                // Send Enrollment Command for Member 1 to ESP32
+                // Send Enrollment Command to ESP32
                 await set(ref(db, 'system/fpCommand'), {
                     action: "ENROLL",
-                    targetFingerId: m1FpId,
-                    cardId: cardKey
+                    targetFingerId: fpIdInput,
+                    cardId: currentCardKey
                 });
 
                 fpWaitBox.style.display = "flex";
-                fpStatusMsg.innerText = `Place finger for ${m1Name} (ID: ${m1FpId}) on ESP32 sensor...`;
+                fpStatusMsg.innerText = `Place finger for ${nameInput} (ID: ${fpIdInput}) on ESP32 sensor...`;
 
-                listenForFpStatus(m1FpId, m1Name);
-
-            } catch (err) {
-                customerErr.innerText = "Failed to sync with Firebase.";
-                customerErr.style.display = "block";
-            }
-        });
-
-        // 7. Enroll Member 2 Fingerprint Command
-        document.getElementById("enroll-m2-btn").addEventListener("click", async () => {
-            customerMsg.style.display = "none";
-            customerErr.style.display = "none";
-
-            const rawUid = cardUidInput.value.replace(/\s+/g, '').toUpperCase();
-            const m2Name = document.getElementById("m2-name").value.trim();
-            const m2FpId = parseInt(document.getElementById("m2-fpid").value) || 0;
-
-            if (!rawUid) {
-                customerErr.innerText = "Please select or scan a valid card first.";
-                customerErr.style.display = "block";
-                return;
-            }
-
-            if (!m2Name || m2FpId === 0) {
-                customerErr.innerText = "Member 2 Name and Fingerprint ID are required for enrollment.";
-                customerErr.style.display = "block";
-                return;
-            }
-
-            const cardKey = rawUid.startsWith("RFID_") ? rawUid : `RFID_${rawUid}`;
-
-            try {
-                await update(ref(db, `cards/${cardKey}/member2`), {
-                    name: m2Name,
-                    fingerprintId: m2FpId
-                });
-
-                await set(ref(db, 'system/fpCommand'), {
-                    action: "ENROLL",
-                    targetFingerId: m2FpId,
-                    cardId: cardKey
-                });
-
-                fpWaitBox.style.display = "flex";
-                fpStatusMsg.innerText = `Place finger for Member 2 (${m2Name}, ID: ${m2FpId}) on ESP32 sensor...`;
-
-                listenForFpStatus(m2FpId, m2Name);
+                listenForFpStatus(fpIdInput, nameInput);
 
             } catch (err) {
-                customerErr.innerText = "Failed to trigger Member 2 enrollment.";
+                customerErr.innerText = "Failed to send enroll command to ESP32.";
                 customerErr.style.display = "block";
             }
-        });
+        };
 
-        // Helper for Fingerprint Status Listener
         function listenForFpStatus(fpId, name) {
             const fpStatusRef = ref(db, 'system/fpStatus');
             onValue(fpStatusRef, (snapshot) => {
                 const status = snapshot.val();
                 if (status && status.state === "SUCCESS") {
                     fpWaitBox.style.display = "none";
-                    customerMsg.innerText = `Card updated & Fingerprint ID ${fpId} registered for ${name}!`;
+                    customerMsg.innerText = `Fingerprint ID ${fpId} successfully registered for ${name}!`;
                     customerMsg.style.display = "block";
                 } else if (status && status.state === "ERROR") {
                     fpStatusMsg.innerText = "Fingerprint enrollment failed on ESP32. Try scanning again.";
@@ -769,24 +696,81 @@
             });
         }
 
-        // 8. Delete Card Action
-        document.getElementById("delete-card-btn").addEventListener("click", async () => {
-            const rawUid = cardUidInput.value.replace(/\s+/g, '').toUpperCase();
-            if (!rawUid) {
-                customerErr.innerText = "Please select a card to delete.";
+        // 7. Save Card & All Members to Firebase
+        document.getElementById("save-card-btn").addEventListener("click", async () => {
+            customerMsg.style.display = "none";
+            customerErr.style.display = "none";
+
+            if (!currentCardKey) {
+                customerErr.innerText = "No active Card UID detected.";
                 customerErr.style.display = "block";
                 return;
             }
 
-            const cardKey = rawUid.startsWith("RFID_") ? rawUid : `RFID_${rawUid}`;
-            if (confirm(`Are you sure you want to delete ${cardKey}?`)) {
+            const members = [];
+            const rows = membersContainer.querySelectorAll(".member-box");
+
+            rows.forEach((row) => {
+                const name = row.querySelector(".member-name-input").value.trim();
+                const fpId = parseInt(row.querySelector(".member-fpid-input").value) || 0;
+                if (name && fpId > 0) {
+                    members.push({ name, fingerprintId: fpId });
+                }
+            });
+
+            if (members.length === 0) {
+                customerErr.innerText = "Please add at least one family member.";
+                customerErr.style.display = "block";
+                return;
+            }
+
+            const cardData = {
+                rationCardNo: document.getElementById("cust-ration").value.trim() || "RC1001",
+                members: members,
+                // Keep backwards compatibility for primary member
+                member1: members[0] || { name: "", fingerprintId: 0 },
+                member2: members[1] || { name: "", fingerprintId: 0 },
+                rice: parseFloat(document.getElementById("cust-rice").value) || 0,
+                wheat: parseFloat(document.getElementById("cust-wheat").value) || 0,
+                amount: parseFloat(document.getElementById("cust-amount").value) || 0,
+                upi: parseInt(document.getElementById("cust-upi").value) || 1234,
+                paid: false,
+                collected: false,
+                collectedBy: "",
+                collectionTime: ""
+            };
+
+            try {
+                await set(ref(db, `cards/${currentCardKey}`), cardData);
+                await set(ref(db, 'system/activeCardId'), currentCardKey);
+
+                // Reset scanned_card back to "None"
+                await set(ref(db, 'system/scanned_card'), "None");
+
+                customerMsg.innerText = "All details saved successfully! Resetting card scanner...";
+                customerMsg.style.display = "block";
+
+                setTimeout(() => {
+                    showView(scanWaitView);
+                }, 2000);
+
+            } catch (err) {
+                customerErr.innerText = "Failed to save card data to Firebase.";
+                customerErr.style.display = "block";
+            }
+        });
+
+        // 8. Delete Card Record
+        document.getElementById("delete-card-btn").addEventListener("click", async () => {
+            if (!currentCardKey) return;
+
+            if (confirm(`Are you sure you want to delete ${currentCardKey}?`)) {
                 try {
-                    await remove(ref(db, `cards/${cardKey}`));
-                    customerMsg.innerText = "Card deleted successfully!";
-                    customerMsg.style.display = "block";
-                    resetForm();
+                    await remove(ref(db, `cards/${currentCardKey}`));
+                    await set(ref(db, 'system/scanned_card'), "None");
+                    showView(scanWaitView);
                 } catch (err) {
-                    customerErr.innerText = "Error deleting card from database.";
+                    customerErr.innerText = "Error deleting record from Firebase.";
                     customerErr.style.display = "block";
                 }
             }
