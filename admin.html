@@ -543,7 +543,7 @@
 
         // RFID Scanner Listener Management
         function startRfidListener() {
-            stopRfidListener(); // Ensure clean listener slate
+            stopRfidListener();
             rfidListenerRef = ref(db, 'system/scanned_card');
             onValue(rfidListenerRef, (snapshot) => {
                 const rawUid = snapshot.val();
@@ -715,7 +715,6 @@
 
             membersContainer.appendChild(box);
 
-            // Attach event listeners dynamically to avoid global scope dependency
             box.querySelector(`[data-enroll-id="${currentIdx}"]`).addEventListener("click", () => {
                 enrollSingleFingerprint(currentIdx);
             });
@@ -748,7 +747,6 @@
             }
 
             try {
-                // Clear any prior status state on ESP32
                 await set(ref(db, 'system/fpStatus'), null);
 
                 await set(ref(db, 'system/fpCommand'), {
@@ -776,7 +774,7 @@
         }
 
         function listenForFpStatus(fpId, name) {
-            stopFpListener(); // Clean up existing listener first
+            stopFpListener();
             fpListenerRef = ref(db, 'system/fpStatus');
 
             onValue(fpListenerRef, (snapshot) => {
