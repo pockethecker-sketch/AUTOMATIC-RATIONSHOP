@@ -382,15 +382,9 @@
                     </div>
                 </div>
 
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="cust-amount">Total Amount (₹)</label>
-                        <input type="number" id="cust-amount" placeholder="0" min="0" step="1">
-                    </div>
-                    <div class="form-group">
-                        <label for="cust-upi">4-Digit UPI PIN</label>
-                        <input type="password" id="cust-upi" maxlength="4" placeholder="1234">
-                    </div>
+                <div class="form-group">
+                    <label for="cust-amount">Total Amount (₹)</label>
+                    <input type="number" id="cust-amount" placeholder="0" min="0" step="1">
                 </div>
 
                 <!-- ESP32 FINGERPRINT ENROLLMENT STATUS -->
@@ -571,13 +565,11 @@
                 if (snapshot.exists()) {
                     const cards = snapshot.val();
                     Object.values(cards).forEach(card => {
-                        // Scan Ration Card Sequence Numbers
                         if (card.rationCardNo) {
                             const num = parseInt(card.rationCardNo.replace(/\D/g, ''));
                             if (!isNaN(num) && num > maxRationNum) maxRationNum = num;
                         }
 
-                        // Scan Member Fingerprint IDs (Array & Legacy Support)
                         const members = card.members ? [...card.members] : [];
                         if (card.member1 && card.member1.fingerprintId) members.push(card.member1);
                         if (card.member2 && card.member2.fingerprintId) members.push(card.member2);
@@ -626,7 +618,6 @@
                 const { nextRationCardNo, nextFpId } = await getHighestExistingIDs();
 
                 if (snapshot.exists()) {
-                    // Load Existing Card Data
                     const data = snapshot.val();
                     formTitle.innerText = "Existing Card Details";
                     cardStatusBadge.className = "badge-status badge-existing";
@@ -637,7 +628,6 @@
                     document.getElementById("cust-rice").value = data.rice ?? 0;
                     document.getElementById("cust-wheat").value = data.wheat ?? 0;
                     document.getElementById("cust-amount").value = data.amount ?? 0;
-                    document.getElementById("cust-upi").value = data.upi ?? 1234;
 
                     let loadedAny = false;
                     if (data.members && Array.isArray(data.members)) {
@@ -654,7 +644,6 @@
                         addMemberRow("", nextFpId);
                     }
                 } else {
-                    // Initialize New Card Registration
                     formTitle.innerText = "New Card Registration";
                     cardStatusBadge.className = "badge-status badge-new";
                     cardStatusBadge.innerText = "New Card Scanned";
@@ -676,7 +665,6 @@
             document.getElementById("cust-rice").value = "";
             document.getElementById("cust-wheat").value = "";
             document.getElementById("cust-amount").value = "";
-            document.getElementById("cust-upi").value = "";
         }
 
         // Dynamic Member Element Generator
@@ -729,7 +717,7 @@
             addMemberRow("", calcNext);
         });
 
-        // Fingerprint Enrollment Handling
+        // Fingerprint Enrollment Handling (Sends enrollRequested: true explicitly)
         async function enrollSingleFingerprint(rowId) {
             customerMsg.style.display = "none";
             customerErr.style.display = "none";
@@ -747,12 +735,15 @@
             }
 
             try {
-                await set(ref(db, 'system/fpStatus'), null);
+                // Reset fpStatus before starting new command
+                await set(ref(db, 'system/fpStatus'), { state: "PENDING", registeredId: fpIdInput });
 
+                // Send Enrollment Command with explicit enrollRequested: true
                 await set(ref(db, 'system/fpCommand'), {
                     action: "ENROLL",
                     targetFingerId: fpIdInput,
-                    cardId: currentCardKey
+                    cardId: currentCardKey,
+                    enrollRequested: true
                 });
 
                 fpWaitBox.style.display = "flex";
@@ -773,6 +764,7 @@
             }
         }
 
+        // Feedback System Listener for ESP32 Enroll Status
         function listenForFpStatus(fpId, name) {
             stopFpListener();
             fpListenerRef = ref(db, 'system/fpStatus');
@@ -782,15 +774,18 @@
                 if (status && status.state === "SUCCESS") {
                     stopFpListener();
                     fpWaitBox.style.display = "none";
-                    customerMsg.innerText = `Fingerprint ID ${fpId} successfully registered for ${name}!`;
+                    customerMsg.innerText = `[SUCCESS] Fingerprint ID ${fpId} registered for ${name}!`;
                     customerMsg.style.display = "block";
-                } else if (status && status.state === "ERROR") {
-                    fpStatusMsg.innerText = "Fingerprint enrollment failed on ESP32. Try scanning again.";
+                } else if (status && status.state === "FAILED") {
+                    stopFpListener();
+                    fpWaitBox.style.display = "none";
+                    customerErr.innerText = `[FAILED] Fingerprint enrollment failed or timed out for ID ${fpId}. Please try again.`;
+                    customerErr.style.display = "block";
                 }
             });
         }
 
-        // Save Card Record
+        // Save Card Record (Hardcodes default upi: 1234)
         document.getElementById("save-card-btn").addEventListener("click", async () => {
             customerMsg.style.display = "none";
             customerErr.style.display = "none";
@@ -822,7 +817,7 @@
                 rice: parseFloat(document.getElementById("cust-rice").value) || 0,
                 wheat: parseFloat(document.getElementById("cust-wheat").value) || 0,
                 amount: parseFloat(document.getElementById("cust-amount").value) || 0,
-                upi: parseInt(document.getElementById("cust-upi").value) || 1234,
+                upi: 1234, // Hardcoded default UPI PIN
                 paid: false,
                 collected: false,
                 collectedBy: "",
