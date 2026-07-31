@@ -180,6 +180,11 @@
             align-items: center;
             justify-content: center;
             gap: 8px;
+            transition: background 0.2s;
+        }
+
+        .btn-primary:hover {
+            background-color: var(--primary-blue);
         }
 
         .btn-add-member {
@@ -300,18 +305,18 @@
     </header>
 
     <main class="main-container">
-        <!-- 1. LOGIN -->
+        <!-- 1. LOGIN VIEW -->
         <div id="login-view" class="view-section active">
             <div class="card">
                 <h2>Admin Login</h2>
                 <p id="login-error" class="error-text">Incorrect User ID or Password</p>
                 <div class="form-group">
-                    <label>User ID</label>
-                    <input type="text" id="login-userid" placeholder="Enter Admin User ID">
+                    <label for="login-userid">User ID</label>
+                    <input type="text" id="login-userid" placeholder="Enter Admin User ID" autocomplete="username">
                 </div>
                 <div class="form-group">
-                    <label>Password</label>
-                    <input type="password" id="login-password" placeholder="Enter Password">
+                    <label for="login-password">Password</label>
+                    <input type="password" id="login-password" placeholder="Enter Password" autocomplete="current-password">
                 </div>
                 <button id="login-btn" class="btn-primary">
                     <span class="material-icons">login</span> Login
@@ -334,7 +339,7 @@
             </div>
         </div>
 
-        <!-- 3. CARD DETAILS & INFINITE MEMBERS FORM -->
+        <!-- 3. CARD DETAILS & DYNAMIC MEMBERS FORM -->
         <div id="form-view" class="view-section">
             <div class="card">
                 <h2 id="form-title">Card Management</h2>
@@ -345,16 +350,16 @@
 
                 <!-- CARD UID -->
                 <div class="form-group">
-                    <label>Card UID</label>
+                    <label for="cust-uid">Card UID</label>
                     <input type="text" id="cust-uid" readonly style="background-color: #f0f0f0; font-weight: bold;">
                 </div>
 
                 <div class="form-group">
-                    <label>Ration Card No.</label>
+                    <label for="cust-ration">Ration Card No.</label>
                     <input type="text" id="cust-ration" placeholder="Auto-calculating...">
                 </div>
 
-                <!-- DYNAMIC INFINITE MEMBERS SECTION -->
+                <!-- DYNAMIC MEMBERS SECTION -->
                 <div class="form-group">
                     <label style="font-size: 0.95rem; color: var(--primary-blue);">Family Members</label>
                     <div id="members-container" class="member-container">
@@ -368,27 +373,27 @@
                 <!-- RATION ALLOCATIONS & PAYMENTS -->
                 <div class="form-row">
                     <div class="form-group">
-                        <label>Rice (kg)</label>
-                        <input type="number" id="cust-rice" placeholder="0">
+                        <label for="cust-rice">Rice (kg)</label>
+                        <input type="number" id="cust-rice" placeholder="0" min="0" step="0.5">
                     </div>
                     <div class="form-group">
-                        <label>Wheat (kg)</label>
-                        <input type="number" id="cust-wheat" placeholder="0">
+                        <label for="cust-wheat">Wheat (kg)</label>
+                        <input type="number" id="cust-wheat" placeholder="0" min="0" step="0.5">
                     </div>
                 </div>
 
                 <div class="form-row">
                     <div class="form-group">
-                        <label>Total Amount (₹)</label>
-                        <input type="number" id="cust-amount" placeholder="0">
+                        <label for="cust-amount">Total Amount (₹)</label>
+                        <input type="number" id="cust-amount" placeholder="0" min="0" step="1">
                     </div>
                     <div class="form-group">
-                        <label>4-Digit UPI PIN</label>
+                        <label for="cust-upi">4-Digit UPI PIN</label>
                         <input type="password" id="cust-upi" maxlength="4" placeholder="1234">
                     </div>
                 </div>
 
-                <!-- ESP32 FINGERPRINT STATUS -->
+                <!-- ESP32 FINGERPRINT ENROLLMENT STATUS -->
                 <div id="fp-wait-box" class="fp-wait-box">
                     <div class="spinner"></div>
                     <div>
@@ -410,9 +415,18 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getDatabase, ref, get, set, update, remove, onValue, off } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+        import { 
+            getDatabase, 
+            ref, 
+            get, 
+            set, 
+            update, 
+            remove, 
+            onValue, 
+            off 
+        } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
-        // Firebase Setup
+        // Firebase Configuration
         const firebaseConfig = {
             apiKey: "AIzaSyBRcy-3Rmatm8uN2eUfFUrKvPJ8nqbvWNs",
             authDomain: "automatic-ration-shop-a934b.firebaseapp.com",
@@ -447,7 +461,9 @@
         let currentCardKey = "";
         let memberCounter = 0;
         let rfidListenerRef = null;
+        let fpListenerRef = null;
 
+        // View Management
         function showView(view) {
             loginView.classList.remove("active");
             scanWaitView.classList.remove("active");
@@ -462,12 +478,13 @@
                 startRfidListener();
             } else {
                 stopRfidListener();
+                stopFpListener();
                 showView(loginView);
                 logoutBtn.style.display = "none";
             }
         }
 
-        // 1. Initial Login Check
+        // Initial Login State Verification
         async function checkInitialLoginStatus() {
             try {
                 const snapshot = await get(ref(db, 'admin/login'));
@@ -482,7 +499,7 @@
         }
         checkInitialLoginStatus();
 
-        // 2. Login Action
+        // Login Action
         document.getElementById("login-btn").addEventListener("click", async () => {
             const usernameInput = document.getElementById("login-userid").value.trim();
             const passwordInput = document.getElementById("login-password").value.trim();
@@ -518,13 +535,15 @@
             }
         });
 
+        // Logout Action
         logoutBtn.addEventListener("click", async () => {
             try { await update(ref(db, 'admin'), { login: false }); } catch (e) {}
             setLoginState(false);
         });
 
-        // 3. Start Listening for RFID Scans
+        // RFID Scanner Listener Management
         function startRfidListener() {
+            stopRfidListener(); // Ensure clean listener slate
             rfidListenerRef = ref(db, 'system/scanned_card');
             onValue(rfidListenerRef, (snapshot) => {
                 const rawUid = snapshot.val();
@@ -542,7 +561,7 @@
             }
         }
 
-        // Helper: Get Highest Existing Ration Card Number and Fingerprint ID across Firebase
+        // Dynamic Sequence ID Generator
         async function getHighestExistingIDs() {
             let maxRationNum = 1000;
             let maxFpId = 0;
@@ -552,25 +571,27 @@
                 if (snapshot.exists()) {
                     const cards = snapshot.val();
                     Object.values(cards).forEach(card => {
-                        // Check Ration Card Number
+                        // Scan Ration Card Sequence Numbers
                         if (card.rationCardNo) {
                             const num = parseInt(card.rationCardNo.replace(/\D/g, ''));
                             if (!isNaN(num) && num > maxRationNum) maxRationNum = num;
                         }
 
-                        // Check Member Fingerprint IDs
-                        const members = card.members || [];
+                        // Scan Member Fingerprint IDs (Array & Legacy Support)
+                        const members = card.members ? [...card.members] : [];
                         if (card.member1 && card.member1.fingerprintId) members.push(card.member1);
                         if (card.member2 && card.member2.fingerprintId) members.push(card.member2);
 
                         members.forEach(m => {
-                            const fp = parseInt(m.fingerprintId);
-                            if (!isNaN(fp) && fp > maxFpId) maxFpId = fp;
+                            if (m && m.fingerprintId) {
+                                const fp = parseInt(m.fingerprintId);
+                                if (!isNaN(fp) && fp > maxFpId) maxFpId = fp;
+                            }
                         });
                     });
                 }
             } catch (err) {
-                console.error("Error calculating next sequence IDs:", err);
+                console.error("Error fetching sequence IDs:", err);
             }
 
             return {
@@ -579,7 +600,6 @@
             };
         }
 
-        // Helper: Calculate highest Fingerprint ID including UI input rows
         function getNextAvailableFpId() {
             let maxFpId = 0;
             const rows = membersContainer.querySelectorAll(".member-fpid-input");
@@ -590,7 +610,7 @@
             return maxFpId > 0 ? maxFpId + 1 : 1;
         }
 
-        // 4. Process Scanned Card UID & Fetch Details
+        // Scanned Card Processing
         async function processScannedCard(rawUid) {
             const cleanUid = rawUid.replace(/\s+/g, '').toUpperCase();
             currentCardKey = cleanUid.startsWith("RFID_") ? cleanUid : `RFID_${cleanUid}`;
@@ -606,7 +626,7 @@
                 const { nextRationCardNo, nextFpId } = await getHighestExistingIDs();
 
                 if (snapshot.exists()) {
-                    // Existing Card
+                    // Load Existing Card Data
                     const data = snapshot.val();
                     formTitle.innerText = "Existing Card Details";
                     cardStatusBadge.className = "badge-status badge-existing";
@@ -614,12 +634,11 @@
                     cardStatusBadge.style.display = "inline-block";
 
                     document.getElementById("cust-ration").value = data.rationCardNo || nextRationCardNo;
-                    document.getElementById("cust-rice").value = data.rice || 0;
-                    document.getElementById("cust-wheat").value = data.wheat || 0;
-                    document.getElementById("cust-amount").value = data.amount || 0;
-                    document.getElementById("cust-upi").value = data.upi || 1234;
+                    document.getElementById("cust-rice").value = data.rice ?? 0;
+                    document.getElementById("cust-wheat").value = data.wheat ?? 0;
+                    document.getElementById("cust-amount").value = data.amount ?? 0;
+                    document.getElementById("cust-upi").value = data.upi ?? 1234;
 
-                    // Load Existing Members
                     let loadedAny = false;
                     if (data.members && Array.isArray(data.members)) {
                         data.members.forEach(m => {
@@ -634,9 +653,8 @@
                     if (!loadedAny) {
                         addMemberRow("", nextFpId);
                     }
-
                 } else {
-                    // New Card -> Auto assign next Ration Card No & next FP ID
+                    // Initialize New Card Registration
                     formTitle.innerText = "New Card Registration";
                     cardStatusBadge.className = "badge-status badge-new";
                     cardStatusBadge.innerText = "New Card Scanned";
@@ -648,9 +666,8 @@
                 }
 
                 showView(formView);
-
             } catch (err) {
-                console.error("Error fetching card details:", err);
+                console.error("Error processing card:", err);
             }
         }
 
@@ -662,12 +679,10 @@
             document.getElementById("cust-upi").value = "";
         }
 
-        // 5. Dynamic Member Row Creation with Auto Fingerprint ID
+        // Dynamic Member Element Generator
         function addMemberRow(name = "", fpId = "") {
             memberCounter++;
             const currentIdx = memberCounter;
-            
-            // Auto calculate next FP ID if not explicitly provided
             const autoFpId = fpId !== "" ? fpId : getNextAvailableFpId();
 
             const box = document.createElement("div");
@@ -678,10 +693,10 @@
                 <div class="member-header">
                     <h4><span class="material-icons">person</span> Member ${currentIdx}</h4>
                     <div style="display: flex; gap: 6px;">
-                        <button type="button" class="btn-enroll-sm" onclick="enrollSingleFingerprint(${currentIdx})">
+                        <button type="button" class="btn-enroll-sm" data-enroll-id="${currentIdx}">
                             <span class="material-icons" style="font-size:1rem;">fingerprint</span> Enroll FP
                         </button>
-                        <button type="button" class="btn-remove-sm" onclick="removeMemberRow(${currentIdx})">
+                        <button type="button" class="btn-remove-sm" data-remove-id="${currentIdx}">
                             <span class="material-icons" style="font-size:1rem;">delete</span>
                         </button>
                     </div>
@@ -693,12 +708,20 @@
                     </div>
                     <div class="form-group">
                         <label>Fingerprint ID (Auto Generated)</label>
-                        <input type="number" class="member-fpid-input" value="${autoFpId}">
+                        <input type="number" class="member-fpid-input" value="${autoFpId}" min="1">
                     </div>
                 </div>
             `;
 
             membersContainer.appendChild(box);
+
+            // Attach event listeners dynamically to avoid global scope dependency
+            box.querySelector(`[data-enroll-id="${currentIdx}"]`).addEventListener("click", () => {
+                enrollSingleFingerprint(currentIdx);
+            });
+            box.querySelector(`[data-remove-id="${currentIdx}"]`).addEventListener("click", () => {
+                box.remove();
+            });
         }
 
         document.getElementById("add-member-btn").addEventListener("click", async () => {
@@ -707,13 +730,8 @@
             addMemberRow("", calcNext);
         });
 
-        window.removeMemberRow = function(id) {
-            const row = document.getElementById(`member-row-${id}`);
-            if (row) row.remove();
-        };
-
-        // 6. Enroll Single Fingerprint Command
-        window.enrollSingleFingerprint = async function(rowId) {
+        // Fingerprint Enrollment Handling
+        async function enrollSingleFingerprint(rowId) {
             customerMsg.style.display = "none";
             customerErr.style.display = "none";
 
@@ -730,6 +748,9 @@
             }
 
             try {
+                // Clear any prior status state on ESP32
+                await set(ref(db, 'system/fpStatus'), null);
+
                 await set(ref(db, 'system/fpCommand'), {
                     action: "ENROLL",
                     targetFingerId: fpIdInput,
@@ -745,13 +766,23 @@
                 customerErr.innerText = "Failed to trigger fingerprint enrollment.";
                 customerErr.style.display = "block";
             }
-        };
+        }
+
+        function stopFpListener() {
+            if (fpListenerRef) {
+                off(fpListenerRef);
+                fpListenerRef = null;
+            }
+        }
 
         function listenForFpStatus(fpId, name) {
-            const fpStatusRef = ref(db, 'system/fpStatus');
-            onValue(fpStatusRef, (snapshot) => {
+            stopFpListener(); // Clean up existing listener first
+            fpListenerRef = ref(db, 'system/fpStatus');
+
+            onValue(fpListenerRef, (snapshot) => {
                 const status = snapshot.val();
                 if (status && status.state === "SUCCESS") {
+                    stopFpListener();
                     fpWaitBox.style.display = "none";
                     customerMsg.innerText = `Fingerprint ID ${fpId} successfully registered for ${name}!`;
                     customerMsg.style.display = "block";
@@ -761,7 +792,7 @@
             });
         }
 
-        // 7. Save Card Details & Reset Listener for Next Scan
+        // Save Card Record
         document.getElementById("save-card-btn").addEventListener("click", async () => {
             customerMsg.style.display = "none";
             customerErr.style.display = "none";
@@ -809,6 +840,7 @@
                 customerMsg.style.display = "block";
 
                 setTimeout(() => {
+                    stopFpListener();
                     showView(scanWaitView);
                     startRfidListener();
                 }, 1500);
@@ -819,7 +851,7 @@
             }
         });
 
-        // 8. Delete Card Record & Reset Listener
+        // Delete Card Record
         document.getElementById("delete-card-btn").addEventListener("click", async () => {
             if (!currentCardKey) return;
 
@@ -827,6 +859,7 @@
                 try {
                     await remove(ref(db, `cards/${currentCardKey}`));
                     await set(ref(db, 'system/scanned_card'), "None");
+                    stopFpListener();
                     showView(scanWaitView);
                     startRfidListener();
                 } catch (err) {
