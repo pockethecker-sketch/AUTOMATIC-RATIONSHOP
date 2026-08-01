@@ -13,6 +13,7 @@
             --primary-light: #1976d2;
             --accent-green: #2e7d32;
             --accent-red: #c62828;
+            --accent-orange: #e65100;
             --bg-color: #f4f6f9;
             --card-bg: #ffffff;
             --text-main: #333333;
@@ -119,7 +120,7 @@
             color: var(--text-muted);
         }
 
-        .form-group input {
+        .form-group input, .form-group select {
             padding: 11px;
             border: 1px solid var(--border-color);
             border-radius: 8px;
@@ -128,7 +129,7 @@
             transition: border-color 0.2s;
         }
 
-        .form-group input:focus {
+        .form-group input:focus, .form-group select:focus {
             border-color: var(--primary-light);
         }
 
@@ -252,6 +253,21 @@
             gap: 8px;
         }
 
+        .btn-warning {
+            background-color: var(--accent-orange);
+            color: white;
+            border: none;
+            padding: 10px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+
         .btn-logout {
             background-color: var(--accent-red);
             color: white;
@@ -275,6 +291,38 @@
             display: none;
             align-items: center;
             gap: 10px;
+        }
+
+        /* SYSTEM TIME CONTROL BOX */
+        .time-control-card {
+            background: #fff;
+            border: 1px solid #e0e0e0;
+            border-radius: var(--radius);
+            padding: 18px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-bottom: 20px;
+            box-shadow: var(--shadow);
+        }
+
+        .time-control-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid #eeeeee;
+            padding-bottom: 8px;
+        }
+
+        .time-display-box {
+            background: #f0f4f8;
+            padding: 10px;
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 0.9rem;
+            color: var(--primary-blue);
+            text-align: center;
+            font-weight: bold;
         }
 
         /* TELEGRAM QR CODE MODAL BOX */
@@ -339,7 +387,51 @@
             </div>
         </div>
 
-        <!-- 2. SCAN WAITING VIEW -->
+        <!-- 2. SYSTEM TIME & MONTH EDIT CONTROL DASHBOARD -->
+        <div id="time-control-section" class="time-control-card" style="display: none;">
+            <div class="time-control-header">
+                <h3 style="font-size: 1rem; color: var(--primary-blue); display: flex; align-items: center; gap: 6px;">
+                    <span class="material-icons">schedule</span> ESP32 Clock & Monthly Reset
+                </h3>
+                <span id="current-month-badge" class="badge-status badge-new">Month: --</span>
+            </div>
+
+            <div class="time-display-box" id="time-formatted-display">
+                System Time: Loading Realtime Clock...
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="select-month">Active Cycle Month</label>
+                    <select id="select-month">
+                        <option value="1">1 - January</option>
+                        <option value="2">2 - February</option>
+                        <option value="3">3 - March</option>
+                        <option value="4">4 - April</option>
+                        <option value="5">5 - May</option>
+                        <option value="6">6 - June</option>
+                        <option value="7">7 - July</option>
+                        <option value="8">8 - August</option>
+                        <option value="9">9 - September</option>
+                        <option value="10">10 - October</option>
+                        <option value="11">11 - November</option>
+                        <option value="12">12 - December</option>
+                    </select>
+                </div>
+
+                <div class="form-group" style="justify-content: flex-end;">
+                    <button id="update-month-btn" class="btn-warning">
+                        <span class="material-icons">published_with_changes</span> Trigger Reset
+                    </button>
+                </div>
+            </div>
+
+            <button id="sync-clock-btn" class="btn-add-member" style="border-style: solid;">
+                <span class="material-icons">sync</span> Sync ESP32 Clock with Browser Time
+            </button>
+        </div>
+
+        <!-- 3. SCAN WAITING VIEW -->
         <div id="scan-wait-view" class="view-section">
             <div class="card">
                 <h2>Awaiting RFID Card Scan</h2>
@@ -354,7 +446,7 @@
             </div>
         </div>
 
-        <!-- 3. CARD DETAILS & DYNAMIC MEMBERS FORM -->
+        <!-- 4. CARD DETAILS & DYNAMIC MEMBERS FORM -->
         <div id="form-view" class="view-section">
             <div class="card">
                 <h2 id="form-title">Card Management</h2>
@@ -456,15 +548,22 @@
             appId: "1:603540489454:web:c6336b05633c4a0fee1fff"
         };
 
-        const BOT_USERNAME = "Rationshopbot"; // Replace with your Bot Username without @
+        const BOT_USERNAME = "Rationshopbot"; 
 
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
 
-        // UI Views
+        // UI Views & Time Controls
         const loginView = document.getElementById("login-view");
         const scanWaitView = document.getElementById("scan-wait-view");
         const formView = document.getElementById("form-view");
+        const timeControlSection = document.getElementById("time-control-section");
+
+        const timeFormattedDisplay = document.getElementById("time-formatted-display");
+        const currentMonthBadge = document.getElementById("current-month-badge");
+        const selectMonth = document.getElementById("select-month");
+        const updateMonthBtn = document.getElementById("update-month-btn");
+        const syncClockBtn = document.getElementById("sync-clock-btn");
 
         // Controls
         const logoutBtn = document.getElementById("logout-btn");
@@ -488,6 +587,7 @@
         let memberCounter = 0;
         let rfidListenerRef = null;
         let fpListenerRef = null;
+        let timeListenerRef = null;
 
         // View Management
         function showView(view) {
@@ -501,14 +601,74 @@
             if (isLoggedIn) {
                 showView(scanWaitView);
                 logoutBtn.style.display = "flex";
+                timeControlSection.style.display = "flex";
                 startRfidListener();
+                startTimeListeners();
             } else {
                 stopRfidListener();
                 stopFpListener();
+                stopTimeListeners();
                 showView(loginView);
                 logoutBtn.style.display = "none";
+                timeControlSection.style.display = "none";
             }
         }
+
+        // Live System Time & Month Listeners
+        function startTimeListeners() {
+            stopTimeListeners();
+
+            // Month listener
+            onValue(ref(db, 'system/time/month'), (snapshot) => {
+                const monthVal = snapshot.val() || 8;
+                currentMonthBadge.innerText = `Month: ${monthVal}`;
+                selectMonth.value = monthVal;
+            });
+
+            // Unix clock listener
+            timeListenerRef = ref(db, 'system/time/currentUnix');
+            onValue(timeListenerRef, (snapshot) => {
+                const unixSec = snapshot.val();
+                if (unixSec) {
+                    const dateObj = new Date(unixSec * 1000);
+                    timeFormattedDisplay.innerText = `RTC Clock: ${dateObj.toLocaleString()}`;
+                }
+            });
+        }
+
+        function stopTimeListeners() {
+            if (timeListenerRef) {
+                off(timeListenerRef);
+                timeListenerRef = null;
+            }
+        }
+
+        // Action: Change System Month & Trigger Reset on ESP32
+        updateMonthBtn.addEventListener("click", async () => {
+            const chosenMonth = parseInt(selectMonth.value);
+            try {
+                await update(ref(db, 'system/time'), { month: chosenMonth });
+                alert(`System Month changed to Month ${chosenMonth}. ESP32 will trigger card collection resets!`);
+            } catch (err) {
+                alert("Failed to update system month.");
+            }
+        });
+
+        // Action: Sync ESP32 Virtual Time with Browser Time
+        syncClockBtn.addEventListener("click", async () => {
+            const currentUnixSec = Math.floor(Date.now() / 1000);
+            const currentMonthNum = new Date().getMonth() + 1;
+
+            try {
+                await update(ref(db, 'system/time'), { 
+                    currentUnix: currentUnixSec,
+                    month: currentMonthNum
+                });
+                alert("ESP32 System Time successfully synced with Browser!");
+            } catch (err) {
+                alert("Failed to sync clock.");
+            }
+        });
 
         // Initial Login State Verification
         async function checkInitialLoginStatus() {
