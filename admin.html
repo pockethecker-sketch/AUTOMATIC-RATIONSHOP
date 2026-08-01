@@ -224,6 +224,20 @@
             gap: 4px;
         }
 
+        .btn-qr-sm {
+            background-color: var(--primary-light);
+            color: white;
+            border: none;
+            padding: 6px 10px;
+            border-radius: 6px;
+            font-size: 0.78rem;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
         .btn-remove-sm {
             background-color: #ffebee;
             color: var(--accent-red);
@@ -293,7 +307,6 @@
             gap: 10px;
         }
 
-        /* SYSTEM TIME CONTROL BOX */
         .time-control-card {
             background: #fff;
             border: 1px solid #e0e0e0;
@@ -325,7 +338,6 @@
             font-weight: bold;
         }
 
-        /* TELEGRAM QR CODE MODAL BOX */
         .qr-section-box {
             background-color: #e3f2fd;
             border: 1px solid #90caf9;
@@ -510,7 +522,7 @@
                         Ask <strong id="qr-member-name">Member</strong> to scan this QR code with their phone camera/Telegram to receive receipts:
                     </p>
                     <div id="qrcode-display" style="padding: 10px; background: white; border-radius: 8px;"></div>
-                    <p id="qr-direct-link" style="font-size: 0.8rem; word-break: break-all;"></p>
+                    <p id="qr-direct-link" style="font-size: 0.8rem; word-break: break-all; margin-top: 6px;"></p>
                 </div>
 
                 <button id="save-card-btn" class="btn-primary">
@@ -548,7 +560,7 @@
             appId: "1:603540489454:web:c6336b05633c4a0fee1fff"
         };
 
-        const BOT_USERNAME = "Rationshopbot"; 
+        const BOT_USERNAME = "AutomaticRationShop_bot"; 
 
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
@@ -588,6 +600,7 @@
         let rfidListenerRef = null;
         let fpListenerRef = null;
         let timeListenerRef = null;
+        let activeOtpListeners = {};
 
         // View Management
         function showView(view) {
@@ -661,6 +674,7 @@
 
             try {
                 await update(ref(db, 'system/time'), { 
+                    setUnixTime: currentUnixSec,
                     currentUnix: currentUnixSec,
                     month: currentMonthNum
                 });
@@ -877,6 +891,9 @@
                         <button type="button" class="btn-enroll-sm" data-enroll-id="${currentIdx}">
                             <span class="material-icons" style="font-size:1rem;">fingerprint</span> Enroll FP
                         </button>
+                        <button type="button" class="btn-qr-sm" data-qr-id="${currentIdx}">
+                            <span class="material-icons" style="font-size:1rem;">qr_code_2</span> Generate QR
+                        </button>
                         <button type="button" class="btn-remove-sm" data-remove-id="${currentIdx}">
                             <span class="material-icons" style="font-size:1rem;">delete</span>
                         </button>
@@ -909,6 +926,9 @@
             box.querySelector(`[data-enroll-id="${currentIdx}"]`).addEventListener("click", () => {
                 enrollSingleFingerprint(currentIdx);
             });
+            box.querySelector(`[data-qr-id="${currentIdx}"]`).addEventListener("click", () => {
+                generateTelegramOtpQr(currentIdx);
+            });
             box.querySelector(`[data-remove-id="${currentIdx}"]`).addEventListener("click", () => {
                 box.remove();
             });
@@ -920,7 +940,7 @@
             addMemberRow("", "", calcNext, "");
         });
 
-        // Fingerprint Enrollment Handling & Telegram QR Code Generator
+        // Fingerprint Enrollment Handling
         async function enrollSingleFingerprint(rowId) {
             customerMsg.style.display = "none";
             customerErr.style.display = "none";
@@ -929,7 +949,6 @@
             if (!row) return;
 
             const nameInput = row.querySelector(".member-name-input").value.trim();
-            const phoneInput = row.querySelector(".member-phone-input").value.trim();
             const fpIdInput = parseInt(row.querySelector(".member-fpid-input").value) || 0;
 
             if (!nameInput || fpIdInput === 0) {
@@ -939,10 +958,7 @@
             }
 
             try {
-                // 1. Explicitly RESET fpStatus before triggering command
                 await set(ref(db, 'system/fpStatus'), { state: "PENDING", registeredId: fpIdInput, msg: "Waiting..." });
-
-                // 2. Send Enrollment Command to ESP32
                 await set(ref(db, 'system/fpCommand'), {
                     action: "ENROLL",
                     targetFingerId: fpIdInput,
@@ -953,7 +969,7 @@
                 fpWaitBox.style.display = "flex";
                 fpStatusMsg.innerText = `Place finger for ${nameInput} (ID: ${fpIdInput}) on ESP32 sensor...`;
 
-                listenForFpStatus(fpIdInput, nameInput, phoneInput);
+                listenForFpStatus(fpIdInput, nameInput);
 
             } catch (err) {
                 customerErr.innerText = "Failed to trigger fingerprint enrollment.";
@@ -969,7 +985,7 @@
         }
 
         // Live Feedback Listener for ESP32 Fingerprint Enrollment
-        function listenForFpStatus(fpId, name, phone) {
+        function listenForFpStatus(fpId, name) {
             stopFpListener();
             fpListenerRef = ref(db, 'system/fpStatus');
 
@@ -977,7 +993,6 @@
                 const status = snapshot.val();
                 if (!status) return;
 
-                // Live status updates from ESP32 hardware
                 if (status.state === "PLACED_1") {
                     fpStatusMsg.innerText = "Finger detected! Remove finger from sensor...";
                 } else if (status.state === "REMOVE") {
@@ -987,11 +1002,6 @@
                     fpWaitBox.style.display = "none";
                     customerMsg.innerText = `[SUCCESS] Fingerprint ID ${fpId} registered for ${name}!`;
                     customerMsg.style.display = "block";
-
-                    // Show Telegram Deep Link QR code if phone number exists
-                    if (phone) {
-                        renderTelegramQr(name, phone, currentCardKey);
-                    }
                 } else if (status.state === "FAILED") {
                     stopFpListener();
                     fpWaitBox.style.display = "none";
@@ -1001,12 +1011,25 @@
             });
         }
 
-        // Helper Function to Render Telegram Link QR Code
-        function renderTelegramQr(name, phone, cardId) {
-            const cleanPhone = phone.replace(/\D/g, '');
-            const telegramDeepLink = `https://t.me/${BOT_USERNAME}?start=${cleanPhone}_${cardId}`;
+        // Generate Telegram Deep Link QR Code with OTP Verification
+        async function generateTelegramOtpQr(rowId) {
+            const row = document.getElementById(`member-row-${rowId}`);
+            if (!row) return;
 
-            qrMemberName.innerText = name;
+            const nameInput = row.querySelector(".member-name-input").value.trim() || "Member";
+            const phoneInput = row.querySelector(".member-phone-input").value.trim();
+            const chatIdInput = row.querySelector(".member-chatid-input");
+
+            if (!phoneInput) {
+                alert("Please enter a Phone Number first!");
+                return;
+            }
+
+            // Generate a random 4-digit OTP
+            const randomOtp = Math.floor(1000 + Math.random() * 9000).toString();
+            const telegramDeepLink = `https://t.me/${BOT_USERNAME}?start=${randomOtp}`;
+
+            qrMemberName.innerText = `${nameInput} (OTP: ${randomOtp})`;
             qrDirectLink.innerHTML = `<a href="${telegramDeepLink}" target="_blank">${telegramDeepLink}</a>`;
             qrcodeDisplay.innerHTML = "";
 
@@ -1020,6 +1043,38 @@
             });
 
             telegramQrBox.style.display = "flex";
+
+            // Save pending OTP to Firebase Realtime Database
+            try {
+                await set(ref(db, `pending_otps/${randomOtp}`), {
+                    phone: phoneInput,
+                    status: "WAITING",
+                    chatId: "",
+                    createdAt: Date.now()
+                });
+
+                // Listen for verification from Node.js Bot server
+                const otpRef = ref(db, `pending_otps/${randomOtp}`);
+                
+                if (activeOtpListeners[rowId]) {
+                    off(activeOtpListeners[rowId]);
+                }
+                activeOtpListeners[rowId] = otpRef;
+
+                onValue(otpRef, (snapshot) => {
+                    const data = snapshot.val();
+                    if (data && data.status === "VERIFIED" && data.chatId) {
+                        chatIdInput.value = data.chatId;
+                        alert(`✅ Telegram successfully linked for ${nameInput}! Chat ID: ${data.chatId}`);
+                        telegramQrBox.style.display = "none";
+                        off(otpRef);
+                        delete activeOtpListeners[rowId];
+                    }
+                });
+
+            } catch (err) {
+                alert("Failed to initialize OTP request in Firebase.");
+            }
         }
 
         // Save Card Record
@@ -1057,7 +1112,7 @@
                 rice: parseFloat(document.getElementById("cust-rice").value) || 0,
                 wheat: parseFloat(document.getElementById("cust-wheat").value) || 0,
                 amount: parseFloat(document.getElementById("cust-amount").value) || 0,
-                upi: 1234, // Hardcoded default UPI PIN
+                upi: 1234,
                 paid: false,
                 collected: false,
                 collectedBy: "",
