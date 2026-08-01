@@ -79,6 +79,18 @@
             letter-spacing: 0.5px;
         }
 
+        .sync-status-badge {
+            background-color: rgba(255, 255, 255, 0.2);
+            color: white;
+            padding: 4px 8px;
+            font-size: 0.75rem;
+            border-radius: 4px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
         .offline-badge {
             background-color: var(--accent-red);
             color: white;
@@ -327,13 +339,6 @@
             text-transform: uppercase;
             font-weight: 600;
             letter-spacing: 0.5px;
-        }
-
-        .info-group p {
-            font-size: 1.1rem;
-            font-weight: 600;
-            color: var(--text-main);
-            margin-top: 2px;
         }
 
         .members-list-box {
@@ -811,6 +816,10 @@
                 <span class="material-icons">account_balance</span>
                 <h2>Automatic Ration Shop</h2>
             </div>
+            <div class="sync-status-badge">
+                <span class="material-icons" style="font-size: 14px;">sync</span>
+                <span>Auto-Synced</span>
+            </div>
             <div id="offline-indicator" class="offline-badge" style="display: none;">Offline</div>
         </header>
 
@@ -948,7 +957,7 @@
                         <strong id="rcpt-amount">--</strong>
                     </div>
                     <div class="receipt-row">
-                        <span>Timestamp</span>
+                        <span>Synchronized Time</span>
                         <strong id="rcpt-time">--</strong>
                     </div>
                 </div>
@@ -1095,9 +1104,9 @@
     <!-- ================= APPLICATION LOGIC ================= -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getDatabase, ref, get, update } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+        import { getDatabase, ref, get, update, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
-        // Updated Firebase Configuration
+        // Firebase Configuration
         const firebaseConfig = {
             apiKey: "AIzaSyBRcy-3Rmatm8uN2eUfFUrKvPJ8nqbvWNs",
             authDomain: "automatic-ration-shop-a934b.firebaseapp.com",
@@ -1112,6 +1121,20 @@
         const db = getDatabase(app);
 
         let currentEnteredPin = "";
+        let serverTimeOffset = 0;
+
+        // Firebase automatic server time synchronization
+        function syncWithFirebase() {
+            const offsetRef = ref(db, ".info/serverTimeOffset");
+            onValue(offsetRef, (snap) => {
+                serverTimeOffset = snap.val() || 0;
+            });
+        }
+        syncWithFirebase();
+
+        function getSynchronizedTime() {
+            return new Date(Date.now() + serverTimeOffset).toISOString();
+        }
 
         function showView(viewId) {
             document.querySelectorAll('.view-container').forEach(el => el.classList.remove('active'));
@@ -1357,7 +1380,7 @@
             }
         }
 
-        // Single-attempt PIN check logic matching database field 'upi'
+        // Single-attempt PIN check logic with synchronized timestamp update
         async function verifyPinAndPay(enteredPin) {
             const customerData = JSON.parse(sessionStorage.getItem("customerReceipt") || "{}");
             const expectedPin = String(customerData.upi || "1234").trim();
@@ -1368,17 +1391,17 @@
                 step3.style.display = "flex";
 
                 const activeCardKey = sessionStorage.getItem("activeCardKey");
-                const timestamp = new Date().toISOString();
+                const synchronizedTimestamp = getSynchronizedTime();
 
                 setTimeout(async () => {
                     try {
                         await update(ref(db, `cards/${activeCardKey}`), {
                             paid: true,
-                            paymentTime: timestamp
+                            paymentTime: synchronizedTimestamp
                         });
 
                         let receipt = JSON.parse(sessionStorage.getItem("customerReceipt") || "{}");
-                        receipt.paymentTime = timestamp;
+                        receipt.paymentTime = synchronizedTimestamp;
                         sessionStorage.setItem("customerReceipt", JSON.stringify(receipt));
 
                         fullScreenApp.style.display = "none";
