@@ -498,23 +498,29 @@
 
                 <h2 style="text-align: left; margin-top: 10px;">Monthly Ration Collection Details</h2>
 
-                <div class="form-group">
-                    <label for="report-month-select">Select Month to Inspect</label>
-                    <select id="report-month-select">
-                        <option value="ALL">All Months (Overview)</option>
-                        <option value="1">1 - January</option>
-                        <option value="2">2 - February</option>
-                        <option value="3">3 - March</option>
-                        <option value="4">4 - April</option>
-                        <option value="5">5 - May</option>
-                        <option value="6">6 - June</option>
-                        <option value="7">7 - July</option>
-                        <option value="8" selected>8 - August</option>
-                        <option value="9">9 - September</option>
-                        <option value="10">10 - October</option>
-                        <option value="11">11 - November</option>
-                        <option value="12">12 - December</option>
-                    </select>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="report-month-select">Select Month to Inspect</label>
+                        <select id="report-month-select">
+                            <option value="1">1 - January</option>
+                            <option value="2">2 - February</option>
+                            <option value="3">3 - March</option>
+                            <option value="4">4 - April</option>
+                            <option value="5">5 - May</option>
+                            <option value="6">6 - June</option>
+                            <option value="7">7 - July</option>
+                            <option value="8" selected>8 - August</option>
+                            <option value="9">9 - September</option>
+                            <option value="10">10 - October</option>
+                            <option value="11">11 - November</option>
+                            <option value="12">12 - December</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="justify-content: flex-end;">
+                        <button id="clear-month-data-btn" class="btn-danger" style="padding: 10px; font-size: 0.82rem;">
+                            <span class="material-icons" style="font-size:1rem;">delete_forever</span> Clear Selected Month Data
+                        </button>
+                    </div>
                 </div>
 
                 <div class="report-summary-box">
@@ -669,6 +675,7 @@
         const syncClockBtn = document.getElementById("sync-clock-btn");
 
         const reportMonthSelect = document.getElementById("report-month-select");
+        const clearMonthDataBtn = document.getElementById("clear-month-data-btn");
         const reportItemsContainer = document.getElementById("report-items-container");
         const statTotalCards = document.getElementById("stat-total-cards");
         const statCollectedCards = document.getElementById("stat-collected-cards");
@@ -687,6 +694,7 @@
         const fpStatusMsg = document.getElementById("fp-status-msg");
 
         let currentCardKey = "";
+        let activeSystemMonth = 8;
         let memberCounter = 0;
         let rfidListenerRef = null;
         let fpListenerRef = null;
@@ -731,6 +739,7 @@
         navTimeBtn.addEventListener("click", () => showView(timeView));
         navReportsBtn.addEventListener("click", () => {
             showView(reportsView);
+            reportMonthSelect.value = activeSystemMonth;
             loadMonthlyReport();
         });
 
@@ -745,6 +754,7 @@
 
             onValue(ref(db, 'system/time/month'), (snapshot) => {
                 const monthVal = snapshot.val() || 8;
+                activeSystemMonth = monthVal;
                 currentMonthBadge.innerText = `Month: ${monthVal}`;
                 selectMonth.value = monthVal;
             });
@@ -771,7 +781,8 @@
             const chosenMonth = parseInt(selectMonth.value);
             try {
                 await update(ref(db, 'system/time'), { month: chosenMonth });
-                alert(`System Month changed to Month ${chosenMonth}. ESP32 will trigger card collection resets!`);
+                activeSystemMonth = chosenMonth;
+                alert(`System Month changed to Month ${chosenMonth}. Ready for collection!`);
             } catch (err) {
                 alert("Failed to update system month.");
             }
@@ -794,8 +805,9 @@
             }
         });
 
-        // LOAD 12-MONTH REPORT DATA
+        // LOAD INDIVIDUAL MONTH REPORT DATA
         async function loadMonthlyReport() {
+            const selectedMonth = reportMonthSelect.value;
             reportItemsContainer.innerHTML = "<p style='text-align:center;'>Loading collection details...</p>";
             
             try {
@@ -819,13 +831,17 @@
                     const c = cards[cardKey];
                     total++;
 
-                    const isFullyCollected = c.collected || (c.riceCollected && c.wheatCollected);
+                    // Read isolated month collection details
+                    const monthRecord = (c.monthlyRecords && c.monthlyRecords[selectedMonth]) ? c.monthlyRecords[selectedMonth] : {};
+                    const isFullyCollected = monthRecord.collected || false;
+
                     if (isFullyCollected) collectedCount++;
                     else pendingCount++;
 
-                    const collectorName = c.collectedBy || c.riceCollectedBy || c.wheatCollectedBy || "Not Collected Yet";
-                    const riceActual = c.actualRiceKg ?? c.rice ?? 0;
-                    const wheatActual = c.actualWheatKg ?? c.wheat ?? 0;
+                    const collectorName = monthRecord.collectedBy || "Not Collected";
+                    const riceActual = monthRecord.riceKg ?? c.rice ?? 0;
+                    const wheatActual = monthRecord.wheatKg ?? c.wheat ?? 0;
+                    const collectTime = monthRecord.collectionTime || "--";
 
                     const itemBox = document.createElement("div");
                     itemBox.className = "report-item-box";
@@ -838,14 +854,14 @@
                                 ${isFullyCollected ? 'COLLECTED' : 'PENDING'}
                             </span>
                         </div>
-                        <div style="font-size: 0.85rem; color: var(--text-muted);">
+                        <div style="font-size: 0.85rem; color: var(--text-muted); margin-top: 4px;">
                             <p><strong>Collector:</strong> ${collectorName}</p>
                             <p><strong>Rice:</strong> ${riceActual} kg | <strong>Wheat:</strong> ${wheatActual} kg</p>
-                            <p><strong>Paid Status:</strong> ${c.paid ? 'Yes' : 'No'}</p>
+                            <p><strong>Time:</strong> ${collectTime}</p>
                         </div>
-                        <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px;">
+                        <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 6px;">
                             <button type="button" class="btn-remove-sm" data-reset-card="${cardKey}">
-                                <span class="material-icons" style="font-size:0.9rem;">restart_alt</span> Reset Collection
+                                <span class="material-icons" style="font-size:0.9rem;">restart_alt</span> Delete Month Record
                             </button>
                         </div>
                     `;
@@ -853,7 +869,7 @@
                     reportItemsContainer.appendChild(itemBox);
 
                     itemBox.querySelector(`[data-reset-card="${cardKey}"]`).addEventListener("click", () => {
-                        resetSingleCardCollection(cardKey);
+                        deleteCardMonthRecord(cardKey, selectedMonth);
                     });
                 });
 
@@ -866,25 +882,37 @@
             }
         }
 
-        // RESET COLLECTION STATUS OF SPECIFIC CARD
-        async function resetSingleCardCollection(cardKey) {
-            if (confirm(`Reset monthly collection status for ${cardKey}?`)) {
+        // DELETE/RESET ENTIRE SELECTED MONTH DATA ACROSS ALL CARDS
+        clearMonthDataBtn.addEventListener("click", async () => {
+            const monthVal = reportMonthSelect.value;
+            if (confirm(`Are you sure you want to DELETE ALL collection history for Month ${monthVal}?`)) {
                 try {
-                    await update(ref(db, `cards/${cardKey}`), {
-                        collected: false,
-                        riceCollected: false,
-                        wheatCollected: false,
-                        paid: false,
-                        actualRiceKg: 0,
-                        actualWheatKg: 0,
-                        collectedBy: "",
-                        riceCollectedBy: "",
-                        wheatCollectedBy: ""
-                    });
-                    alert(`Collection status reset for ${cardKey}`);
+                    const snapshot = await get(ref(db, 'cards'));
+                    if (snapshot.exists()) {
+                        const cards = snapshot.val();
+                        const updates = {};
+                        Object.keys(cards).forEach(cardKey => {
+                            updates[`cards/${cardKey}/monthlyRecords/${monthVal}`] = null;
+                        });
+                        await update(ref(db), updates);
+                    }
+                    alert(`Month ${monthVal} collection records successfully deleted.`);
                     loadMonthlyReport();
                 } catch (err) {
-                    alert("Failed to reset card collection status.");
+                    alert("Failed to clear month data.");
+                }
+            }
+        });
+
+        // RESET SINGLE CARD RECORD FOR SPECIFIC MONTH
+        async function deleteCardMonthRecord(cardKey, monthVal) {
+            if (confirm(`Delete Month ${monthVal} record for card ${cardKey}?`)) {
+                try {
+                    await remove(ref(db, `cards/${cardKey}/monthlyRecords/${monthVal}`));
+                    alert(`Month ${monthVal} record deleted for ${cardKey}`);
+                    loadMonthlyReport();
+                } catch (err) {
+                    alert("Failed to delete record.");
                 }
             }
         }
@@ -1078,7 +1106,7 @@
             document.getElementById("cust-amount").value = "";
         }
 
-        // Dynamic Member Element Generator (With Email Address)
+        // Dynamic Member Element Generator
         function addMemberRow(name = "", email = "", fpId = "") {
             memberCounter++;
             const currentIdx = memberCounter;
@@ -1204,7 +1232,7 @@
             });
         }
 
-        // Save Card Record (Stores Email instead of Phone)
+        // Save Card Record
         document.getElementById("save-card-btn").addEventListener("click", async () => {
             customerMsg.style.display = "none";
             customerErr.style.display = "none";
@@ -1230,25 +1258,22 @@
                 return;
             }
 
+            const riceVal = parseFloat(document.getElementById("cust-rice").value) || 0;
+            const wheatVal = parseFloat(document.getElementById("cust-wheat").value) || 0;
+
             const cardData = {
                 rationCardNo: document.getElementById("cust-ration").value.trim() || "RC1001",
                 members: members,
                 member1: members[0] || { name: "", email: "", fingerprintId: 0 },
                 member2: members[1] || { name: "", email: "", fingerprintId: 0 },
-                rice: parseFloat(document.getElementById("cust-rice").value) || 0,
-                wheat: parseFloat(document.getElementById("cust-wheat").value) || 0,
+                rice: riceVal,
+                wheat: wheatVal,
                 amount: parseFloat(document.getElementById("cust-amount").value) || 0,
-                upi: 1234,
-                paid: false,
-                collected: false,
-                riceCollected: false,
-                wheatCollected: false,
-                collectedBy: "",
-                collectionTime: ""
+                upi: 1234
             };
 
             try {
-                await set(ref(db, `cards/${currentCardKey}`), cardData);
+                await update(ref(db, `cards/${currentCardKey}`), cardData);
                 await set(ref(db, 'system/activeCardId'), currentCardKey);
                 await set(ref(db, 'system/scanned_card'), "None");
 
