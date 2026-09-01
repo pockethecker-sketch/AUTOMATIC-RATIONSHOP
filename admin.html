@@ -97,9 +97,6 @@
 
         .badge-new { background-color: #e3f2fd; color: #0d47a1; }
         .badge-existing { background-color: #e8f5e9; color: #1b5e20; }
-        .badge-collected { background-color: #c8e6c9; color: #2e7d32; }
-        .badge-skipped { background-color: #ffe0b2; color: #e65100; }
-        .badge-pending { background-color: #e0e0e0; color: #666666; border: 1px solid #ccc; }
 
         .scan-indicator {
             background-color: #e8eaf6;
@@ -360,42 +357,6 @@
             border: 1px solid #d0d7de;
         }
 
-        .report-summary-box {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 10px;
-            text-align: center;
-            margin-bottom: 12px;
-        }
-
-        .report-stat-card {
-            background: #f8f9fa;
-            border: 1px solid #e0e0e0;
-            padding: 10px;
-            border-radius: 8px;
-        }
-
-        .report-stat-card h3 {
-            font-size: 1.2rem;
-            color: var(--primary-blue);
-        }
-
-        .report-stat-card p {
-            font-size: 0.75rem;
-            color: var(--text-muted);
-        }
-
-        .report-item-box {
-            background: #ffffff;
-            border: 1px solid #e0e0e0;
-            border-left: 5px solid var(--primary-light);
-            border-radius: 8px;
-            padding: 12px;
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
-        }
-
         .spinner {
             width: 20px;
             height: 20px;
@@ -423,9 +384,6 @@
         <div class="nav-actions">
             <button id="nav-time-btn" class="btn-nav-action" style="display: none;">
                 <span class="material-icons">schedule</span> Manage Time
-            </button>
-            <button id="nav-reports-btn" class="btn-nav-action" style="display: none;">
-                <span class="material-icons">assessment</span> Reports
             </button>
             <button id="logout-btn" class="btn-logout" style="display: none;">
                 <span class="material-icons">logout</span> Logout
@@ -502,65 +460,7 @@
             </div>
         </div>
 
-        <!-- 3. MONTHLY COLLECTION REPORTS VIEW -->
-        <div id="reports-view" class="view-section">
-            <div class="card">
-                <div style="display: flex; align-items: center; justify-content: space-between;">
-                    <button id="reports-back-btn" class="btn-back">
-                        <span class="material-icons">arrow_back</span> Back
-                    </button>
-                    <span class="badge-status badge-existing">12-Month Reports</span>
-                </div>
-
-                <h2 style="text-align: left; margin-top: 10px;">Monthly Ration Collection Details</h2>
-
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="report-month-select">Select Month to Inspect</label>
-                        <select id="report-month-select">
-                            <option value="1">1 - January</option>
-                            <option value="2">2 - February</option>
-                            <option value="3">3 - March</option>
-                            <option value="4">4 - April</option>
-                            <option value="5">5 - May</option>
-                            <option value="6">6 - June</option>
-                            <option value="7">7 - July</option>
-                            <option value="8" selected>8 - August</option>
-                            <option value="9">9 - September</option>
-                            <option value="10">10 - October</option>
-                            <option value="11">11 - November</option>
-                            <option value="12">12 - December</option>
-                        </select>
-                    </div>
-                    <div class="form-group" style="justify-content: flex-end;">
-                        <button id="clear-month-data-btn" class="btn-danger" style="padding: 10px; font-size: 0.82rem;">
-                            <span class="material-icons" style="font-size:1rem;">delete_forever</span> Clear Selected Month Data
-                        </button>
-                    </div>
-                </div>
-
-                <div class="report-summary-box">
-                    <div class="report-stat-card">
-                        <h3 id="stat-total-cards">0</h3>
-                        <p>Total Registered</p>
-                    </div>
-                    <div class="report-stat-card">
-                        <h3 id="stat-collected-cards" style="color: var(--accent-green);">0</h3>
-                        <p>Processed</p>
-                    </div>
-                    <div class="report-stat-card">
-                        <h3 id="stat-pending-cards" style="color: var(--accent-orange);">0</h3>
-                        <p>Not Collected</p>
-                    </div>
-                </div>
-
-                <div id="report-items-container" style="display: flex; flex-direction: column; gap: 10px;">
-                    <!-- Dynamically injected report items -->
-                </div>
-            </div>
-        </div>
-
-        <!-- 4. SCAN WAITING VIEW -->
+        <!-- 3. SCAN WAITING VIEW -->
         <div id="scan-wait-view" class="view-section">
             <div class="card">
                 <h2>Awaiting RFID Card Scan</h2>
@@ -575,7 +475,7 @@
             </div>
         </div>
 
-        <!-- 5. CARD DETAILS & DYNAMIC MEMBERS FORM -->
+        <!-- 4. CARD DETAILS & DYNAMIC MEMBERS FORM -->
         <div id="form-view" class="view-section">
             <div class="card">
                 <h2 id="form-title">Card Management</h2>
@@ -681,13 +581,10 @@
         const scanWaitView = document.getElementById("scan-wait-view");
         const formView = document.getElementById("form-view");
         const timeView = document.getElementById("time-view");
-        const reportsView = document.getElementById("reports-view");
 
         // Navigation Controls
         const navTimeBtn = document.getElementById("nav-time-btn");
-        const navReportsBtn = document.getElementById("nav-reports-btn");
         const timeBackBtn = document.getElementById("time-back-btn");
-        const reportsBackBtn = document.getElementById("reports-back-btn");
 
         // Controls
         const timeFormattedDisplay = document.getElementById("time-formatted-display");
@@ -695,13 +592,6 @@
         const selectMonth = document.getElementById("select-month");
         const updateMonthBtn = document.getElementById("update-month-btn");
         const syncClockBtn = document.getElementById("sync-clock-btn");
-
-        const reportMonthSelect = document.getElementById("report-month-select");
-        const clearMonthDataBtn = document.getElementById("clear-month-data-btn");
-        const reportItemsContainer = document.getElementById("report-items-container");
-        const statTotalCards = document.getElementById("stat-total-cards");
-        const statCollectedCards = document.getElementById("stat-collected-cards");
-        const statPendingCards = document.getElementById("stat-pending-cards");
 
         const logoutBtn = document.getElementById("logout-btn");
         const loginError = document.getElementById("login-error");
@@ -728,7 +618,7 @@
 
         // View Management
         function showView(targetView) {
-            if (targetView !== timeView && targetView !== reportsView && targetView !== loginView) {
+            if (targetView !== timeView && targetView !== loginView) {
                 previousView = targetView;
             }
 
@@ -736,7 +626,6 @@
             scanWaitView.classList.remove("active");
             formView.classList.remove("active");
             timeView.classList.remove("active");
-            reportsView.classList.remove("active");
             
             targetView.classList.add("active");
         }
@@ -746,7 +635,6 @@
                 showView(scanWaitView);
                 logoutBtn.style.display = "flex";
                 navTimeBtn.style.display = "flex";
-                navReportsBtn.style.display = "flex";
                 startRfidListener();
                 startTimeListeners();
             } else {
@@ -756,22 +644,12 @@
                 showView(loginView);
                 logoutBtn.style.display = "none";
                 navTimeBtn.style.display = "none";
-                navReportsBtn.style.display = "none";
             }
         }
 
         // Navigation Actions
         navTimeBtn.addEventListener("click", () => showView(timeView));
-        navReportsBtn.addEventListener("click", () => {
-            showView(reportsView);
-            reportMonthSelect.value = activeSystemMonth;
-            loadMonthlyReport();
-        });
-
         timeBackBtn.addEventListener("click", () => showView(previousView || scanWaitView));
-        reportsBackBtn.addEventListener("click", () => showView(previousView || scanWaitView));
-
-        reportMonthSelect.addEventListener("change", () => loadMonthlyReport());
 
         // Live System Time & Month Listeners
         function startTimeListeners() {
@@ -829,148 +707,6 @@
                 alert("Failed to sync clock.");
             }
         });
-
-        // LOAD MONTH REPORT DATA (CHECKS REAL-TIME FIREBASE STATUS)
-        async function loadMonthlyReport() {
-            const selectedMonth = reportMonthSelect.value;
-            reportItemsContainer.innerHTML = "<p style='text-align:center;'>Loading collection details...</p>";
-            
-            try {
-                const snapshot = await get(ref(db, 'cards'));
-                if (!snapshot.exists()) {
-                    reportItemsContainer.innerHTML = "<p style='text-align:center; color: var(--text-muted);'>No card records found.</p>";
-                    statTotalCards.innerText = "0";
-                    statCollectedCards.innerText = "0";
-                    statPendingCards.innerText = "0";
-                    return;
-                }
-
-                const cards = snapshot.val();
-                let total = 0;
-                let collectedCount = 0;
-                let pendingCount = 0;
-
-                reportItemsContainer.innerHTML = "";
-
-                Object.keys(cards).forEach((cardKey) => {
-                    const c = cards[cardKey];
-                    total++;
-
-                    // Fetch month specific record
-                    const monthRecord = (c.monthlyRecords && c.monthlyRecords[selectedMonth]) ? c.monthlyRecords[selectedMonth] : null;
-                    
-                    // Check if month record has been written/processed
-                    const isMonthProcessed = monthRecord && (monthRecord.collected === true || monthRecord.riceCollected !== undefined || monthRecord.wheatCollected !== undefined);
-
-                    // Check individual item states from Firebase
-                    const isRiceCollected = isMonthProcessed && (monthRecord.riceCollected === true);
-                    const isWheatCollected = isMonthProcessed && (monthRecord.wheatCollected === true);
-
-                    if (isMonthProcessed) {
-                        collectedCount++;
-                    } else {
-                        pendingCount++;
-                    }
-
-                    const collectorName = isMonthProcessed 
-                        ? (monthRecord.collectedBy || monthRecord.riceCollectedBy || "Recorded") 
-                        : "Not Collected Yet";
-                        
-                    const riceQty = (monthRecord && monthRecord.riceKg !== undefined) ? monthRecord.riceKg : (c.rice ?? 0);
-                    const wheatQty = (monthRecord && monthRecord.wheatKg !== undefined) ? monthRecord.wheatKg : (c.wheat ?? 0);
-                    const collectTime = (monthRecord && monthRecord.collectionTime) ? monthRecord.collectionTime : "Not Yet Collected";
-
-                    // Determine badges
-                    let riceBadgeHtml = `<span class="badge-status badge-pending">Rice: PENDING</span>`;
-                    let wheatBadgeHtml = `<span class="badge-status badge-pending">Wheat: PENDING</span>`;
-
-                    if (isMonthProcessed) {
-                        riceBadgeHtml = `<span class="badge-status ${isRiceCollected ? 'badge-collected' : 'badge-skipped'}">Rice: ${isRiceCollected ? 'COLLECTED' : 'SKIPPED'}</span>`;
-                        wheatBadgeHtml = `<span class="badge-status ${isWheatCollected ? 'badge-collected' : 'badge-skipped'}">Wheat: ${isWheatCollected ? 'COLLECTED' : 'SKIPPED'}</span>`;
-                    }
-
-                    const itemBox = document.createElement("div");
-                    itemBox.className = "report-item-box";
-                    
-                    // Border visual cue
-                    if (!isMonthProcessed) {
-                        itemBox.style.borderLeftColor = "#cccccc";
-                    } else if (isRiceCollected && isWheatCollected) {
-                        itemBox.style.borderLeftColor = "var(--accent-green)";
-                    } else {
-                        itemBox.style.borderLeftColor = "var(--accent-orange)";
-                    }
-
-                    itemBox.innerHTML = `
-                        <div style="display: flex; justify-content: space-between; align-items: center;">
-                            <strong>${c.rationCardNo || cardKey} (${cardKey})</strong>
-                            <div style="display: flex; gap: 4px;">
-                                ${riceBadgeHtml}
-                                ${wheatBadgeHtml}
-                            </div>
-                        </div>
-                        <div style="font-size: 0.85rem; color: var(--text-muted); margin-top: 6px;">
-                            <p><strong>Collector:</strong> ${collectorName}</p>
-                            <p><strong>Allocations:</strong> Rice: ${riceQty} kg | Wheat: ${wheatQty} kg</p>
-                            <p><strong>Timestamp:</strong> ${collectTime}</p>
-                        </div>
-                        <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 6px;">
-                            <button type="button" class="btn-remove-sm" data-reset-card="${cardKey}">
-                                <span class="material-icons" style="font-size:0.9rem;">restart_alt</span> Reset Month Entry
-                            </button>
-                        </div>
-                    `;
-
-                    reportItemsContainer.appendChild(itemBox);
-
-                    itemBox.querySelector(`[data-reset-card="${cardKey}"]`).addEventListener("click", () => {
-                        deleteCardMonthRecord(cardKey, selectedMonth);
-                    });
-                });
-
-                statTotalCards.innerText = total;
-                statCollectedCards.innerText = collectedCount;
-                statPendingCards.innerText = pendingCount;
-
-            } catch (err) {
-                reportItemsContainer.innerHTML = "<p style='text-align:center; color: var(--accent-red);'>Failed to load reports.</p>";
-            }
-        }
-
-        // DELETE/RESET ENTIRE SELECTED MONTH DATA ACROSS ALL CARDS
-        clearMonthDataBtn.addEventListener("click", async () => {
-            const monthVal = reportMonthSelect.value;
-            if (confirm(`Are you sure you want to DELETE ALL collection history for Month ${monthVal}?`)) {
-                try {
-                    const snapshot = await get(ref(db, 'cards'));
-                    if (snapshot.exists()) {
-                        const cards = snapshot.val();
-                        const updates = {};
-                        Object.keys(cards).forEach(cardKey => {
-                            updates[`cards/${cardKey}/monthlyRecords/${monthVal}`] = null;
-                        });
-                        await update(ref(db), updates);
-                    }
-                    alert(`Month ${monthVal} collection records successfully deleted.`);
-                    loadMonthlyReport();
-                } catch (err) {
-                    alert("Failed to clear month data.");
-                }
-            }
-        });
-
-        // RESET SINGLE CARD RECORD FOR SPECIFIC MONTH
-        async function deleteCardMonthRecord(cardKey, monthVal) {
-            if (confirm(`Reset Month ${monthVal} record for card ${cardKey}?`)) {
-                try {
-                    await remove(ref(db, `cards/${cardKey}/monthlyRecords/${monthVal}`));
-                    alert(`Month ${monthVal} collection reset for ${cardKey}`);
-                    loadMonthlyReport();
-                } catch (err) {
-                    alert("Failed to delete record.");
-                }
-            }
-        }
 
         // Login Logic
         async function checkInitialLoginStatus() {
