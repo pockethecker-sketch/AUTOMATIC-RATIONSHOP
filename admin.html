@@ -99,7 +99,7 @@
         .badge-existing { background-color: #e8f5e9; color: #1b5e20; }
         .badge-collected { background-color: #c8e6c9; color: #2e7d32; }
         .badge-skipped { background-color: #ffe0b2; color: #e65100; }
-        .badge-pending { background-color: #f5f5f5; color: #666666; border: 1px solid #ccc; }
+        .badge-pending { background-color: #e0e0e0; color: #666666; border: 1px solid #ccc; }
 
         .scan-indicator {
             background-color: #e8eaf6;
@@ -150,10 +150,15 @@
             display: flex;
             align-items: center;
             gap: 8px;
-            margin-top: 4px;
+            margin-top: 6px;
             font-size: 0.85rem;
             font-weight: 600;
             color: var(--text-main);
+            cursor: pointer;
+        }
+
+        .checkbox-group input {
+            cursor: pointer;
         }
 
         .member-container {
@@ -541,16 +546,16 @@
                     </div>
                     <div class="report-stat-card">
                         <h3 id="stat-collected-cards" style="color: var(--accent-green);">0</h3>
-                        <p>Collected</p>
+                        <p>Processed</p>
                     </div>
                     <div class="report-stat-card">
                         <h3 id="stat-pending-cards" style="color: var(--accent-orange);">0</h3>
-                        <p>Pending / Partial</p>
+                        <p>Not Collected</p>
                     </div>
                 </div>
 
                 <div id="report-items-container" style="display: flex; flex-direction: column; gap: 10px;">
-                    <!-- Dynamically injected report cards -->
+                    <!-- Dynamically injected report items -->
                 </div>
             </div>
         </div>
@@ -802,7 +807,7 @@
             try {
                 await update(ref(db, 'system/time'), { month: chosenMonth });
                 activeSystemMonth = chosenMonth;
-                alert(`System Month changed to Month ${chosenMonth}. Ready for collection!`);
+                alert(`System Month changed to Month ${chosenMonth}. All cards now pending for this cycle!`);
             } catch (err) {
                 alert("Failed to update system month.");
             }
@@ -825,7 +830,7 @@
             }
         });
 
-        // LOAD INDIVIDUAL MONTH REPORT DATA (WITH ITEMISED SKIPPED/COLLECTED DISPLAY)
+        // LOAD MONTH REPORT DATA (CHECKS REAL-TIME FIREBASE STATUS)
         async function loadMonthlyReport() {
             const selectedMonth = reportMonthSelect.value;
             reportItemsContainer.innerHTML = "<p style='text-align:center;'>Loading collection details...</p>";
@@ -852,46 +857,60 @@
                     total++;
 
                     // Fetch month specific record
-                    const monthRecord = (c.monthlyRecords && c.monthlyRecords[selectedMonth]) ? c.monthlyRecords[selectedMonth] : {};
+                    const monthRecord = (c.monthlyRecords && c.monthlyRecords[selectedMonth]) ? c.monthlyRecords[selectedMonth] : null;
                     
-                    const isRiceCollected = monthRecord.riceCollected === true;
-                    const isWheatCollected = monthRecord.wheatCollected === true;
-                    const hasAttemptedCollection = monthRecord.collected === true || isRiceCollected || isWheatCollected;
+                    // Check if month record has been written/processed
+                    const isMonthProcessed = monthRecord && (monthRecord.collected === true || monthRecord.riceCollected !== undefined || monthRecord.wheatCollected !== undefined);
 
-                    if (hasAttemptedCollection) collectedCount++;
-                    else pendingCount++;
+                    // Check individual item states from Firebase
+                    const isRiceCollected = isMonthProcessed && (monthRecord.riceCollected === true);
+                    const isWheatCollected = isMonthProcessed && (monthRecord.wheatCollected === true);
 
-                    const collectorName = monthRecord.collectedBy || (c.members && c.members[0] ? c.members[0].name : "Not Collected");
-                    const riceQty = monthRecord.riceKg ?? c.rice ?? 0;
-                    const wheatQty = monthRecord.wheatKg ?? c.wheat ?? 0;
-                    const collectTime = monthRecord.collectionTime || "Not Yet Collected";
+                    if (isMonthProcessed) {
+                        collectedCount++;
+                    } else {
+                        pendingCount++;
+                    }
+
+                    const collectorName = isMonthProcessed 
+                        ? (monthRecord.collectedBy || monthRecord.riceCollectedBy || "Recorded") 
+                        : "Not Collected Yet";
+                        
+                    const riceQty = (monthRecord && monthRecord.riceKg !== undefined) ? monthRecord.riceKg : (c.rice ?? 0);
+                    const wheatQty = (monthRecord && monthRecord.wheatKg !== undefined) ? monthRecord.wheatKg : (c.wheat ?? 0);
+                    const collectTime = (monthRecord && monthRecord.collectionTime) ? monthRecord.collectionTime : "Not Yet Collected";
+
+                    // Determine badges
+                    let riceBadgeHtml = `<span class="badge-status badge-pending">Rice: PENDING</span>`;
+                    let wheatBadgeHtml = `<span class="badge-status badge-pending">Wheat: PENDING</span>`;
+
+                    if (isMonthProcessed) {
+                        riceBadgeHtml = `<span class="badge-status ${isRiceCollected ? 'badge-collected' : 'badge-skipped'}">Rice: ${isRiceCollected ? 'COLLECTED' : 'SKIPPED'}</span>`;
+                        wheatBadgeHtml = `<span class="badge-status ${isWheatCollected ? 'badge-collected' : 'badge-skipped'}">Wheat: ${isWheatCollected ? 'COLLECTED' : 'SKIPPED'}</span>`;
+                    }
 
                     const itemBox = document.createElement("div");
                     itemBox.className = "report-item-box";
                     
-                    // Border styling based on state
-                    if (isRiceCollected && isWheatCollected) {
-                        itemBox.style.borderLeftColor = "var(--accent-green)";
-                    } else if (isRiceCollected || isWheatCollected) {
-                        itemBox.style.borderLeftColor = "var(--accent-orange)";
-                    } else {
+                    // Border visual cue
+                    if (!isMonthProcessed) {
                         itemBox.style.borderLeftColor = "#cccccc";
+                    } else if (isRiceCollected && isWheatCollected) {
+                        itemBox.style.borderLeftColor = "var(--accent-green)";
+                    } else {
+                        itemBox.style.borderLeftColor = "var(--accent-orange)";
                     }
 
                     itemBox.innerHTML = `
                         <div style="display: flex; justify-content: space-between; align-items: center;">
                             <strong>${c.rationCardNo || cardKey} (${cardKey})</strong>
                             <div style="display: flex; gap: 4px;">
-                                <span class="badge-status ${isRiceCollected ? 'badge-collected' : 'badge-skipped'}">
-                                    Rice: ${isRiceCollected ? 'COLLECTED' : 'SKIPPED'}
-                                </span>
-                                <span class="badge-status ${isWheatCollected ? 'badge-collected' : 'badge-skipped'}">
-                                    Wheat: ${isWheatCollected ? 'COLLECTED' : 'SKIPPED'}
-                                </span>
+                                ${riceBadgeHtml}
+                                ${wheatBadgeHtml}
                             </div>
                         </div>
                         <div style="font-size: 0.85rem; color: var(--text-muted); margin-top: 6px;">
-                            <p><strong>Member/Collector:</strong> ${collectorName}</p>
+                            <p><strong>Collector:</strong> ${collectorName}</p>
                             <p><strong>Allocations:</strong> Rice: ${riceQty} kg | Wheat: ${wheatQty} kg</p>
                             <p><strong>Timestamp:</strong> ${collectTime}</p>
                         </div>
@@ -1270,7 +1289,7 @@
             });
         }
 
-        // Save Card Record AND Mark Month Collection Itemized
+        // SAVE CARD DETAILS & WRITE MONTHLY RECORD DIRECTLY
         document.getElementById("save-card-btn").addEventListener("click", async () => {
             customerMsg.style.display = "none";
             customerErr.style.display = "none";
@@ -1314,7 +1333,7 @@
                 upi: 1234
             };
 
-            // Individual month collection node containing detailed item statuses
+            // Store explicit collection states under current system month bucket
             const monthCollectionData = {
                 collected: true,
                 riceCollected: isRiceCollected,
@@ -1329,13 +1348,13 @@
                 // Update persistent profile
                 await update(ref(db, `cards/${currentCardKey}`), cardData);
 
-                // Write month-isolated collection data
+                // Update month-isolated collection data
                 await set(ref(db, `cards/${currentCardKey}/monthlyRecords/${activeSystemMonth}`), monthCollectionData);
 
                 await set(ref(db, 'system/activeCardId'), currentCardKey);
                 await set(ref(db, 'system/scanned_card'), "None");
 
-                customerMsg.innerText = `Saved! Rice: ${isRiceCollected ? 'Collected' : 'Skipped'} | Wheat: ${isWheatCollected ? 'Collected' : 'Skipped'}`;
+                customerMsg.innerText = `Updated! Month ${activeSystemMonth} status saved successfully.`;
                 customerMsg.style.display = "block";
 
                 setTimeout(() => {
